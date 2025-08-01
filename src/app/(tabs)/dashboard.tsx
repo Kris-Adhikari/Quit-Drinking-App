@@ -77,7 +77,7 @@ const Dashboard = () => {
             </LinearGradient>
           </View>
 
-          <Text style={styles.statusText}>You've been sugar-free for:</Text>
+          <Text style={styles.statusText}>You've been alcohol-free for:</Text>
           <Text style={styles.daysCount}>9 days</Text>
           <Text style={styles.timeDetails}>20hr 12m 37s</Text>
         </View>
