@@ -10,41 +10,21 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-const goalOptions = [
-  { 
-    id: 'quit', 
-    label: 'Quit completely', 
-    description: 'I want to stop drinking alcohol entirely',
-    icon: 'close-circle',
-  },
-  { 
-    id: 'reduce', 
-    label: 'Reduce intake', 
-    description: 'I want to drink less than I currently do',
-    icon: 'trending-down',
-  },
-  { 
-    id: 'control', 
-    label: 'Better control', 
-    description: 'I want to have more control over my drinking',
-    icon: 'shield-checkmark',
-  },
-  { 
-    id: 'health', 
-    label: 'Improve health', 
-    description: 'I want to reduce alcohol for health reasons',
-    icon: 'fitness',
-  },
+const drinkingOptions = [
+  { id: 'daily', label: 'Daily', description: 'I drink alcohol every day' },
+  { id: 'weekly', label: 'Weekly', description: 'Several times a week' },
+  { id: 'occasional', label: 'Occasional', description: 'Once a week or less' },
+  { id: 'social', label: 'Social only', description: 'Only at social events' },
+  { id: 'rarely', label: 'Rarely', description: 'Very infrequently' },
 ];
 
-export default function Goals() {
+export default function DrinkingHabits() {
   const router = useRouter();
-  const [selectedGoal, setSelectedGoal] = useState<string | null>(null);
+  const [selectedHabit, setSelectedHabit] = useState<string | null>(null);
 
   const handleContinue = () => {
-    if (selectedGoal) {
-      // Complete onboarding and go to main app
-      router.replace('/(tabs)/dashboard');
+    if (selectedHabit) {
+      router.push('/onboarding/triggers');
     }
   };
 
@@ -63,45 +43,43 @@ export default function Goals() {
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.title}>What's your goal?</Text>
+        <Text style={styles.title}>How often do you drink?</Text>
         <Text style={styles.subtitle}>
-          We'll help you achieve it with personalized support
+          This helps us understand your current habits
         </Text>
 
-        <View style={styles.goalsContainer}>
-          {goalOptions.map((goal) => (
+        <View style={styles.optionsContainer}>
+          {drinkingOptions.map((option) => (
             <TouchableOpacity
-              key={goal.id}
+              key={option.id}
               style={[
-                styles.goalCard,
-                selectedGoal === goal.id && styles.goalCardSelected,
+                styles.optionCard,
+                selectedHabit === option.id && styles.optionCardSelected,
               ]}
-              onPress={() => setSelectedGoal(goal.id)}
+              onPress={() => setSelectedHabit(option.id)}
               activeOpacity={0.7}
             >
-              <View style={[
-                styles.goalIconContainer,
-                selectedGoal === goal.id && styles.goalIconContainerSelected,
-              ]}>
-                <Ionicons
-                  name={goal.icon as any}
-                  size={24}
-                  color={selectedGoal === goal.id ? '#8B5CF6' : '#666666'}
-                />
+              <View style={styles.optionContent}>
+                <Text style={[
+                  styles.optionLabel,
+                  selectedHabit === option.id && styles.optionLabelSelected,
+                ]}>
+                  {option.label}
+                </Text>
+                <Text style={[
+                  styles.optionDescription,
+                  selectedHabit === option.id && styles.optionDescriptionSelected,
+                ]}>
+                  {option.description}
+                </Text>
               </View>
-              <View style={styles.goalContent}>
-                <Text style={[
-                  styles.goalLabel,
-                  selectedGoal === goal.id && styles.goalLabelSelected,
-                ]}>
-                  {goal.label}
-                </Text>
-                <Text style={[
-                  styles.goalDescription,
-                  selectedGoal === goal.id && styles.goalDescriptionSelected,
-                ]}>
-                  {goal.description}
-                </Text>
+              <View style={[
+                styles.radioButton,
+                selectedHabit === option.id && styles.radioButtonSelected,
+              ]}>
+                {selectedHabit === option.id && (
+                  <View style={styles.radioButtonInner} />
+                )}
               </View>
             </TouchableOpacity>
           ))}
@@ -110,17 +88,17 @@ export default function Goals() {
         <TouchableOpacity
           style={[
             styles.continueButton,
-            !selectedGoal && styles.continueButtonDisabled,
+            !selectedHabit && styles.continueButtonDisabled,
           ]}
           onPress={handleContinue}
-          disabled={!selectedGoal}
+          disabled={!selectedHabit}
           activeOpacity={0.8}
         >
           <Text style={[
             styles.continueButtonText,
-            !selectedGoal && styles.continueButtonTextDisabled,
+            !selectedHabit && styles.continueButtonTextDisabled,
           ]}>
-            Complete Setup
+            Continue
           </Text>
         </TouchableOpacity>
       </View>
@@ -161,11 +139,11 @@ const styles = StyleSheet.create({
     color: '#666666',
     marginBottom: 30,
   },
-  goalsContainer: {
+  optionsContainer: {
     flex: 1,
     marginBottom: 20,
   },
-  goalCard: {
+  optionCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
@@ -174,41 +152,47 @@ const styles = StyleSheet.create({
     borderColor: '#e0e0e0',
     marginBottom: 12,
   },
-  goalCardSelected: {
+  optionCardSelected: {
     borderColor: '#8B5CF6',
     backgroundColor: '#f8f5ff',
   },
-  goalIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#f5f5f5',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  goalIconContainerSelected: {
-    backgroundColor: '#ede7ff',
-  },
-  goalContent: {
+  optionContent: {
     flex: 1,
   },
-  goalLabel: {
+  optionLabel: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1a1a1a',
     marginBottom: 4,
   },
-  goalLabelSelected: {
+  optionLabelSelected: {
     color: '#8B5CF6',
   },
-  goalDescription: {
+  optionDescription: {
     fontSize: 14,
     color: '#666666',
-    lineHeight: 20,
   },
-  goalDescriptionSelected: {
-    color: '#7c5ab8',
+  optionDescriptionSelected: {
+    color: '#8B5CF6',
+  },
+  radioButton: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+  },
+  radioButtonSelected: {
+    borderColor: '#8B5CF6',
+  },
+  radioButtonInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#8B5CF6',
   },
   continueButton: {
     backgroundColor: '#1a1a1a',

@@ -1,0 +1,139 @@
+import React from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  SafeAreaView,
+  StatusBar,
+  Dimensions,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+
+const { width, height } = Dimensions.get('window');
+
+export default function Welcome() {
+  const router = useRouter();
+
+  const handleStartQuiz = () => {
+    router.push('/onboarding/personalization-intro');
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#f0f4ff" />
+      
+      <View style={styles.content}>
+        <View style={styles.topSection}>
+          <Text style={styles.welcomeText}>Welcome!</Text>
+          
+          <Text style={styles.subtitleText}>
+            Let's start by finding out if{'\n'}
+            you have a problem with{'\n'}
+            alcohol
+          </Text>
+          
+          <View style={styles.ratingContainer}>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Ionicons
+                key={star}
+                name="star"
+                size={24}
+                color="#FFD700"
+                style={styles.star}
+              />
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.bottomSection}>
+          <TouchableOpacity 
+            style={styles.startButton} 
+            onPress={handleStartQuiz}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.startButtonText}>Start Quiz</Text>
+            <Ionicons name="chevron-forward" size={20} color="#1a1a1a" />
+          </TouchableOpacity>
+          
+          <View style={styles.indicator}>
+            <View style={styles.indicatorLine} />
+          </View>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f0f4ff',
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+  },
+  topSection: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: -50,
+  },
+  welcomeText: {
+    fontSize: 36,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 20,
+  },
+  subtitleText: {
+    fontSize: 18,
+    color: '#1a1a1a',
+    textAlign: 'center',
+    lineHeight: 26,
+    marginBottom: 30,
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  star: {
+    marginHorizontal: 2,
+  },
+  bottomSection: {
+    paddingBottom: 40,
+    alignItems: 'center',
+  },
+  startButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    paddingVertical: 16,
+    paddingHorizontal: 30,
+    borderRadius: 30,
+    marginBottom: 40,
+    minWidth: 200,
+    justifyContent: 'center',
+  },
+  startButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginRight: 8,
+  },
+  indicator: {
+    width: 100,
+    height: 4,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 2,
+  },
+  indicatorLine: {
+    width: '20%',
+    height: '100%',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 2,
+  },
+});
