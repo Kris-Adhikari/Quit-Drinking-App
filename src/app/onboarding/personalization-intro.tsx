@@ -18,7 +18,7 @@ export default function PersonalizationIntro() {
   const router = useRouter();
 
   const handleStartPlan = () => {
-    router.push('/onboarding/drinking-habits');
+    router.push('/onboarding/location');
   };
 
   const handleBack = () => {

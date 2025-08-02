@@ -11,33 +11,36 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-const triggerOptions = [
-  { id: 'stress', label: 'Stress', icon: 'alert-circle' },
-  { id: 'social', label: 'Social Pressure', icon: 'people' },
-  { id: 'boredom', label: 'Boredom', icon: 'time' },
-  { id: 'celebration', label: 'Celebrations', icon: 'happy' },
-  { id: 'anxiety', label: 'Anxiety', icon: 'pulse' },
-  { id: 'routine', label: 'Daily Routine', icon: 'refresh' },
-  { id: 'loneliness', label: 'Loneliness', icon: 'person' },
-  { id: 'anger', label: 'Anger', icon: 'flame' },
+const reasonOptions = [
+  { id: 'health', label: 'Improve overall health and wellness' },
+  { id: 'sleep', label: 'Get better sleep' },
+  { id: 'money', label: 'Save money' },
+  { id: 'relationships', label: 'Improve relationships with others' },
+  { id: 'productivity', label: 'Be more productive' },
+  { id: 'energy', label: 'Have more energy' },
+  { id: 'confidence', label: 'Increase confidence' },
+  { id: 'weight', label: 'Lose weight' },
 ];
 
-export default function Triggers() {
+export default function Reasons() {
   const router = useRouter();
-  const [selectedTriggers, setSelectedTriggers] = useState<string[]>([]);
+  const [selectedReasons, setSelectedReasons] = useState<string[]>([]);
 
-  const handleToggleTrigger = (triggerId: string) => {
-    setSelectedTriggers(prev => {
-      if (prev.includes(triggerId)) {
-        return prev.filter(id => id !== triggerId);
+  const handleToggleReason = (reasonId: string) => {
+    setSelectedReasons(prev => {
+      if (prev.includes(reasonId)) {
+        return prev.filter(id => id !== reasonId);
       }
-      return [...prev, triggerId];
+      if (prev.length < 3) {
+        return [...prev, reasonId];
+      }
+      return prev;
     });
   };
 
   const handleContinue = () => {
-    if (selectedTriggers.length > 0) {
-      router.push('/onboarding/goals');
+    if (selectedReasons.length > 0) {
+      router.push('/onboarding/relationship-alcohol');
     }
   };
 
@@ -53,64 +56,65 @@ export default function Triggers() {
         <TouchableOpacity onPress={handleBack} style={styles.backButton} activeOpacity={0.7}>
           <Ionicons name="chevron-back" size={24} color="#1a1a1a" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Personalization</Text>
+        <Text style={styles.headerTitle}>Goal</Text>
         <View style={styles.progressContainer}>
-          <View style={styles.progressDot} />
-          <View style={styles.progressDot} />
           <View style={[styles.progressDot, styles.progressDotActive]} />
+          <View style={styles.progressDot} />
+          <View style={styles.progressDot} />
           <View style={styles.progressDot} />
         </View>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>What triggers your drinking?</Text>
+        <Text style={styles.title}>What are your reasons for wanting to improve your drinking habits?</Text>
         <Text style={styles.subtitle}>
-          Select all that apply. This helps us provide better support.
+          Let us know your reasons to change.{'\n'}
+          (Select up to three)
         </Text>
 
-        <View style={styles.triggersGrid}>
-          {triggerOptions.map((trigger) => (
+        <View style={styles.optionsContainer}>
+          {reasonOptions.map((option) => (
             <TouchableOpacity
-              key={trigger.id}
+              key={option.id}
               style={[
-                styles.triggerCard,
-                selectedTriggers.includes(trigger.id) && styles.triggerCardSelected,
+                styles.optionCard,
+                selectedReasons.includes(option.id) && styles.optionCardSelected,
+                selectedReasons.length >= 3 && !selectedReasons.includes(option.id) && styles.optionCardDisabled,
               ]}
-              onPress={() => handleToggleTrigger(trigger.id)}
+              onPress={() => handleToggleReason(option.id)}
               activeOpacity={0.7}
+              disabled={selectedReasons.length >= 3 && !selectedReasons.includes(option.id)}
             >
-              <Ionicons
-                name={trigger.icon as any}
-                size={28}
-                color={selectedTriggers.includes(trigger.id) ? '#8B5CF6' : '#666666'}
-              />
               <Text style={[
-                styles.triggerLabel,
-                selectedTriggers.includes(trigger.id) && styles.triggerLabelSelected,
+                styles.optionLabel,
+                selectedReasons.includes(option.id) && styles.optionLabelSelected,
+                selectedReasons.length >= 3 && !selectedReasons.includes(option.id) && styles.optionLabelDisabled,
               ]}>
-                {trigger.label}
+                {option.label}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
+      </ScrollView>
 
+      <View style={styles.bottomContainer}>
         <TouchableOpacity
           style={[
             styles.continueButton,
-            selectedTriggers.length === 0 && styles.continueButtonDisabled,
+            selectedReasons.length === 0 && styles.continueButtonDisabled,
           ]}
           onPress={handleContinue}
-          disabled={selectedTriggers.length === 0}
+          disabled={selectedReasons.length === 0}
           activeOpacity={0.8}
         >
           <Text style={[
             styles.continueButtonText,
-            selectedTriggers.length === 0 && styles.continueButtonTextDisabled,
+            selectedReasons.length === 0 && styles.continueButtonTextDisabled,
           ]}>
             Continue
           </Text>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -160,58 +164,61 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 30,
   },
   title: {
     fontSize: 28,
     fontWeight: '700',
     color: '#1a1a1a',
-    marginBottom: 10,
+    marginBottom: 16,
+    lineHeight: 36,
+    paddingTop: 30,
   },
   subtitle: {
     fontSize: 16,
     color: '#666666',
-    marginBottom: 30,
-    lineHeight: 22,
-  },
-  triggersGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
     marginBottom: 40,
+    lineHeight: 24,
   },
-  triggerCard: {
-    width: '48%',
-    aspectRatio: 1,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 16,
+  optionsContainer: {
+    marginBottom: 20,
+  },
+  optionCard: {
     padding: 20,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+    backgroundColor: '#ffffff',
     marginBottom: 16,
     alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
   },
-  triggerCardSelected: {
+  optionCardSelected: {
     borderColor: '#8B5CF6',
     backgroundColor: '#f8f5ff',
   },
-  triggerLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666666',
-    marginTop: 12,
-    textAlign: 'center',
+  optionCardDisabled: {
+    opacity: 0.5,
   },
-  triggerLabelSelected: {
+  optionLabel: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: '#1a1a1a',
+  },
+  optionLabelSelected: {
     color: '#8B5CF6',
+    fontWeight: '600',
+  },
+  optionLabelDisabled: {
+    color: '#999999',
+  },
+  bottomContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 30,
   },
   continueButton: {
     backgroundColor: '#1a1a1a',
     paddingVertical: 16,
     borderRadius: 30,
     alignItems: 'center',
-    marginBottom: 30,
   },
   continueButtonDisabled: {
     backgroundColor: '#e0e0e0',

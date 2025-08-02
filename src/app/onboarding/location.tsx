@@ -10,21 +10,19 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-const drinkingOptions = [
-  { id: 'daily', label: 'Daily', description: 'I drink alcohol every day' },
-  { id: 'weekly', label: 'Weekly', description: 'Several times a week' },
-  { id: 'occasional', label: 'Occasional', description: 'Once a week or less' },
-  { id: 'social', label: 'Social only', description: 'Only at social events' },
-  { id: 'rarely', label: 'Rarely', description: 'Very infrequently' },
+const locationOptions = [
+  { id: 'country', label: 'The country' },
+  { id: 'suburbs', label: 'The suburbs' },
+  { id: 'city', label: 'A major city' },
 ];
 
-export default function DrinkingHabits() {
+export default function Location() {
   const router = useRouter();
-  const [selectedHabit, setSelectedHabit] = useState<string | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
 
   const handleContinue = () => {
-    if (selectedHabit) {
-      router.push('/onboarding/triggers');
+    if (selectedLocation) {
+      router.push('/onboarding/name');
     }
   };
 
@@ -40,74 +38,62 @@ export default function DrinkingHabits() {
         <TouchableOpacity onPress={handleBack} style={styles.backButton} activeOpacity={0.7}>
           <Ionicons name="chevron-back" size={24} color="#1a1a1a" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Personalization</Text>
+        <Text style={styles.headerTitle}>Profile</Text>
         <View style={styles.progressContainer}>
-          <View style={styles.progressDot} />
           <View style={[styles.progressDot, styles.progressDotActive]} />
+          <View style={styles.progressDot} />
+          <View style={styles.progressDot} />
+          <View style={styles.progressDot} />
           <View style={styles.progressDot} />
           <View style={styles.progressDot} />
         </View>
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.title}>How often do you drink?</Text>
+        <Text style={styles.title}>Which best describes the area you live in?</Text>
         <Text style={styles.subtitle}>
-          This helps us understand your current habits
+          Your environment can play a major role in your ability to break alcohol-related habits.
         </Text>
 
         <View style={styles.optionsContainer}>
-          {drinkingOptions.map((option) => (
+          {locationOptions.map((option) => (
             <TouchableOpacity
               key={option.id}
               style={[
                 styles.optionCard,
-                selectedHabit === option.id && styles.optionCardSelected,
+                selectedLocation === option.id && styles.optionCardSelected,
               ]}
-              onPress={() => setSelectedHabit(option.id)}
+              onPress={() => setSelectedLocation(option.id)}
               activeOpacity={0.7}
             >
-              <View style={styles.optionContent}>
-                <Text style={[
-                  styles.optionLabel,
-                  selectedHabit === option.id && styles.optionLabelSelected,
-                ]}>
-                  {option.label}
-                </Text>
-                <Text style={[
-                  styles.optionDescription,
-                  selectedHabit === option.id && styles.optionDescriptionSelected,
-                ]}>
-                  {option.description}
-                </Text>
-              </View>
-              <View style={[
-                styles.radioButton,
-                selectedHabit === option.id && styles.radioButtonSelected,
+              <Text style={[
+                styles.optionLabel,
+                selectedLocation === option.id && styles.optionLabelSelected,
               ]}>
-                {selectedHabit === option.id && (
-                  <View style={styles.radioButtonInner} />
-                )}
-              </View>
+                {option.label}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        <TouchableOpacity
-          style={[
-            styles.continueButton,
-            !selectedHabit && styles.continueButtonDisabled,
-          ]}
-          onPress={handleContinue}
-          disabled={!selectedHabit}
-          activeOpacity={0.8}
-        >
-          <Text style={[
-            styles.continueButtonText,
-            !selectedHabit && styles.continueButtonTextDisabled,
-          ]}>
-            Continue
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.bottomContainer}>
+          <TouchableOpacity
+            style={[
+              styles.continueButton,
+              !selectedLocation && styles.continueButtonDisabled,
+            ]}
+            onPress={handleContinue}
+            disabled={!selectedLocation}
+            activeOpacity={0.8}
+          >
+            <Text style={[
+              styles.continueButtonText,
+              !selectedLocation && styles.continueButtonTextDisabled,
+            ]}>
+              Continue
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -147,7 +133,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   progressDot: {
-    width: 32,
+    width: 26,
     height: 6,
     borderRadius: 3,
     backgroundColor: '#d0d0d0',
@@ -164,74 +150,49 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
     color: '#1a1a1a',
-    marginBottom: 10,
+    marginBottom: 16,
+    lineHeight: 36,
   },
   subtitle: {
     fontSize: 16,
     color: '#666666',
-    marginBottom: 30,
+    marginBottom: 40,
+    lineHeight: 24,
   },
   optionsContainer: {
-    flex: 1,
     marginBottom: 20,
   },
   optionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
+    padding: 20,
     borderRadius: 12,
     borderWidth: 2,
     borderColor: '#e0e0e0',
-    marginBottom: 12,
+    backgroundColor: '#ffffff',
+    marginBottom: 16,
+    alignItems: 'center',
   },
   optionCardSelected: {
     borderColor: '#8B5CF6',
     backgroundColor: '#f8f5ff',
   },
-  optionContent: {
-    flex: 1,
-  },
   optionLabel: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '500',
     color: '#1a1a1a',
-    marginBottom: 4,
   },
   optionLabelSelected: {
     color: '#8B5CF6',
+    fontWeight: '600',
   },
-  optionDescription: {
-    fontSize: 14,
-    color: '#666666',
-  },
-  optionDescriptionSelected: {
-    color: '#8B5CF6',
-  },
-  radioButton: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#e0e0e0',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 12,
-  },
-  radioButtonSelected: {
-    borderColor: '#8B5CF6',
-  },
-  radioButtonInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#8B5CF6',
+  bottomContainer: {
+    marginTop: 'auto',
+    paddingBottom: 30,
   },
   continueButton: {
     backgroundColor: '#1a1a1a',
     paddingVertical: 16,
     borderRadius: 30,
     alignItems: 'center',
-    marginBottom: 30,
   },
   continueButtonDisabled: {
     backgroundColor: '#e0e0e0',
