@@ -52,7 +52,7 @@ export default function PlanResults() {
   }, [userResponses]);
 
   const handleContinue = () => {
-    router.push('/onboarding/drinking-habits');
+    router.push('/onboarding/plan-effects');
   };
 
   const handleBack = () => {
