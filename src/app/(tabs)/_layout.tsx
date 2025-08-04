@@ -5,56 +5,38 @@ export default function TabsLayout() {
   return (
     <Tabs screenOptions={{ headerShown: false }}>
       <Tabs.Screen
-        name="dashboard"
+        name="daily"
         options={{
-          title: 'Dashboard',
+          title: 'Daily',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'home' : 'home-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'today' : 'today-outline'} size={24} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="add-intake"
+        name="toolkit"
         options={{
-          title: 'Add',
+          title: 'Toolkit',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'add-circle' : 'add-circle-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'build' : 'build-outline'} size={24} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="progress"
+        name="community"
         options={{
-          title: 'Progress',
+          title: 'Community',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'analytics' : 'analytics-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'people' : 'people-outline'} size={24} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="library"
+        name="me"
         options={{
-          title: 'Library',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'library' : 'library-outline'} size={24} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Myself',
+          title: 'Me',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: 'Settings',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'settings' : 'settings-outline'} size={24} color={color} />
           ),
         }}
       />

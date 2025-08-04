@@ -1,6 +1,16 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Session, User } from '@supabase/supabase-js';
+
+// Mock types for development
+type User = {
+  id: string;
+  email?: string;
+  created_at: string;
+};
+
+type Session = {
+  user: User;
+};
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -8,53 +18,35 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // For development, create a mock user when Supabase is not configured
-    const mockUser = {
+    // For development, create a mock user
+    const mockUser: User = {
       id: 'mock-user-id',
       email: 'user@example.com',
       created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-    } as User;
+    };
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? mockUser);
-      setLoading(false);
-    }).catch(() => {
-      // If Supabase is not configured, use mock user
-      setUser(mockUser);
-      setLoading(false);
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? mockUser);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    // Set mock user immediately for development
+    setUser(mockUser);
+    setSession({ user: mockUser });
+    setLoading(false);
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { data, error };
+    // Mock sign in for development
+    console.log('Mock sign in:', email);
+    return { data: null, error: { message: 'Authentication is disabled in development mode' } };
   };
 
   const signUp = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-    return { data, error };
+    // Mock sign up for development
+    console.log('Mock sign up:', email);
+    return { data: null, error: { message: 'Authentication is disabled in development mode' } };
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    return { error };
+    // Mock sign out for development
+    console.log('Mock sign out');
+    return { error: null };
   };
 
   return {

@@ -29,8 +29,7 @@ export const useAlcoholTracking = () => {
 
   // Check if we're using mock data
   const isUsingMockData = () => {
-    const url = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-    return !url || url === 'https://placeholder.supabase.co';
+    return true; // Always use mock data in development
   };
 
   // Calculate streak from logs
@@ -267,6 +266,15 @@ export const useAlcoholTracking = () => {
     await addAlcoholLog(1, 'Reset');
   };
 
+  // Increment streak (when all daily tasks are completed)
+  const incrementStreak = async () => {
+    setStreakData(prev => ({
+      ...prev,
+      current_streak: prev.current_streak + 1,
+      longest_streak: Math.max(prev.longest_streak, prev.current_streak + 1),
+    }));
+  };
+
   // Load all data on mount and when user changes
   useEffect(() => {
     if (user?.id) {
@@ -283,6 +291,7 @@ export const useAlcoholTracking = () => {
     stats,
     addAlcoholLog,
     resetStreak,
+    incrementStreak,
     refreshData: async () => {
       await Promise.all([
         loadTodayLogs(),

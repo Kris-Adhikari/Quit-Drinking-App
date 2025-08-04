@@ -44,7 +44,7 @@ export default function Goals() {
   const handleContinue = () => {
     if (selectedGoal) {
       // Complete onboarding and go to main app
-      router.replace('/(tabs)/dashboard');
+      router.replace('/(tabs)/daily');
     }
   };
 

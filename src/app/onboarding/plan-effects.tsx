@@ -15,7 +15,7 @@ export default function PlanEffects() {
   const router = useRouter();
 
   const handleContinue = () => {
-    router.push('/(tabs)/dashboard');
+    router.push('/(tabs)/daily');
   };
 
   const handleBack = () => {

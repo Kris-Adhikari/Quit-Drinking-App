@@ -1,24 +1,57 @@
-import { createClient } from '@supabase/supabase-js';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+// DEVELOPMENT MODE: Supabase is disabled
+// To enable Supabase, set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in your .env file
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
+// Mock Supabase client for development
+const createMockSupabaseClient = () => {
+  const mockAuth = {
+    getSession: async () => ({ data: { session: null }, error: null }),
+    getUser: async () => ({ data: { user: null }, error: null }),
+    signUp: async () => ({ data: null, error: { message: 'Supabase is disabled in development mode' } }),
+    signInWithPassword: async () => ({ data: null, error: { message: 'Supabase is disabled in development mode' } }),
+    signOut: async () => ({ error: null }),
+    onAuthStateChange: (callback: any) => {
+      // Return mock unsubscribe function
+      return { data: { subscription: { unsubscribe: () => {} } } };
+    },
+  };
 
-// For development, we'll create a placeholder client if keys are not set
-const isPlaceholder = supabaseUrl === 'https://placeholder.supabase.co' || supabaseAnonKey === 'placeholder-key';
+  const mockFrom = (table: string) => {
+    const chainableMethods = {
+      select: () => chainableMethods,
+      insert: () => chainableMethods,
+      update: () => chainableMethods,
+      delete: () => chainableMethods,
+      upsert: () => chainableMethods,
+      eq: () => chainableMethods,
+      neq: () => chainableMethods,
+      gt: () => chainableMethods,
+      gte: () => chainableMethods,
+      lt: () => chainableMethods,
+      lte: () => chainableMethods,
+      like: () => chainableMethods,
+      ilike: () => chainableMethods,
+      is: () => chainableMethods,
+      in: () => chainableMethods,
+      contains: () => chainableMethods,
+      containedBy: () => chainableMethods,
+      order: () => chainableMethods,
+      limit: () => chainableMethods,
+      single: () => chainableMethods,
+      maybeSingle: () => chainableMethods,
+      then: (resolve: any) => resolve({ data: [], error: null }),
+    };
+    return chainableMethods;
+  };
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    storage: AsyncStorage,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
-  },
-});
+  return {
+    auth: mockAuth,
+    from: mockFrom,
+  };
+};
 
-if (isPlaceholder) {
-  console.warn('⚠️ Supabase is running with placeholder values. Please set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in your .env file');
-}
+export const supabase = createMockSupabaseClient() as any;
+
+console.log('🔧 Supabase is disabled for development. All database operations will be mocked.');
 
 // Database types
 export type Database = {

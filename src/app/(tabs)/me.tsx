@@ -175,7 +175,8 @@ export default function Profile() {
   };
 
   const handleSettings = () => {
-    router.push('/(tabs)/settings');
+    // Settings functionality can be added later
+    console.log('Settings clicked');
   };
 
   const AchievementBadge = ({ achievement, unlocked }: { achievement: any; unlocked: boolean }) => (
@@ -312,7 +313,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 50, // Increased top padding for status bar
     paddingBottom: 10,
   },
   headerTitle: {
