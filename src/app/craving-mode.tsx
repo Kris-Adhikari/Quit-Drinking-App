@@ -12,11 +12,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useCoins } from '@/hooks/use-coins';
 
 const { width } = Dimensions.get('window');
 
 export default function CravingMode() {
   const router = useRouter();
+  const { addCoins } = useCoins();
   const [timer, setTimer] = useState(19 * 60 + 59); // Start at 19:59
   const [currentAffirmation, setCurrentAffirmation] = useState(0);
   
@@ -73,9 +75,17 @@ export default function CravingMode() {
     setShowDidYouDrink(true);
   };
 
-  const handleDidNotDrink = () => {
+  const handleDidNotDrink = async () => {
     setShowDidYouDrink(false);
     setShowCongratulations(true);
+    
+    // Add 25 coins reward
+    try {
+      await addCoins(25);
+      console.log('Added 25 coins for not drinking');
+    } catch (error) {
+      console.log('Error adding coins:', error);
+    }
     
     // Auto-close congratulations after 3 seconds
     setTimeout(() => {

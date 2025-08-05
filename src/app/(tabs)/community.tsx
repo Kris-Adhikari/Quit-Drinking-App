@@ -10,99 +10,36 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Switch,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-
-// List of common first names for anonymous users
-const anonymousNames = [
-  'Alex', 'Sam', 'Jordan', 'Casey', 'Morgan', 'Taylor', 'Jamie', 'Robin',
-  'Sarah', 'Mike', 'Emma', 'Chris', 'Lisa', 'David', 'Amy', 'Ryan',
-  'Kelly', 'Pat', 'Lee', 'Dana', 'Blake', 'Drew', 'Quinn', 'Reese'
-];
-
-// Function to get a random anonymous name
-const getRandomAnonymousName = () => {
-  return anonymousNames[Math.floor(Math.random() * anonymousNames.length)];
-};
-
-// Mock posts data - anonymous poetry-style posts
-const mockPosts = [
-  {
-    id: '1',
-    author: 'Anonymous',
-    content: `this am, caught the sunrise. Here's a poem about it if you care to read 🌅
-
-The Rising
-
-I watched the gray clouds turn fluorescent pink.
-This is what sober must feel like.
-There was a light coming from beneath the trees like a bulb starting to glow from its socket.
-My expectations caused the electricity to quickly drain.
-The clouds changed back to gray.
-Who was I to demand the earth put on such a colorful show?
-This, is what sober really feels like.
-A fog began to rise and roll over the water like a smoke screen I've become so oddly accustomed to.
-Eventually it dissipates.
-The gentle ripples turn smooth and still, creating a mirror of the sky above, as if nature implied...don't be afraid. Look at yourself.`,
-    likes: 3,
-    comments: 0,
-    timestamp: '2h ago',
-    isLiked: false,
-  },
-  {
-    id: '2',
-    author: 'Sarah',
-    content: `Day 15. The cravings hit different at night. But I'm learning that feelings are just visitors - they come, they go. Tonight I chose tea instead. Small victories.`,
-    likes: 12,
-    comments: 3,
-    timestamp: '4h ago',
-    isLiked: true,
-  },
-  {
-    id: '3',
-    author: 'Mike',
-    content: `Anyone else notice how much clearer mornings are now? Like someone cleaned the windows of my mind. 30 days tomorrow. Still taking it one day at a time.`,
-    likes: 24,
-    comments: 7,
-    timestamp: '1d ago',
-    isLiked: false,
-  },
-];
+import { useCommunity } from '@/hooks/use-community';
+import { useAuth } from '@/hooks/use-auth';
 
 export default function Community() {
   const router = useRouter();
+  const { user } = useAuth();
+  const { posts, loading, createPost, toggleLike, isPostLiked, formatTimestamp } = useCommunity();
   const [newPost, setNewPost] = useState('');
-  const [posts, setPosts] = useState(mockPosts);
   const [isWriting, setIsWriting] = useState(false);
+  const [isAnonymous, setIsAnonymous] = useState(true);
+  const [isPosting, setIsPosting] = useState(false);
 
-  const handleLike = (postId: string) => {
-    setPosts(posts.map(post => {
-      if (post.id === postId) {
-        return {
-          ...post,
-          isLiked: !post.isLiked,
-          likes: post.isLiked ? post.likes - 1 : post.likes + 1,
-        };
-      }
-      return post;
-    }));
+  const handleLike = async (postId: string) => {
+    await toggleLike(postId);
   };
 
-  const handlePost = () => {
-    if (newPost.trim()) {
-      const newPostObj = {
-        id: Date.now().toString(),
-        author: getRandomAnonymousName(),
-        content: newPost,
-        likes: 0,
-        comments: 0,
-        timestamp: 'now',
-        isLiked: false,
-      };
-      setPosts([newPostObj, ...posts]);
-      setNewPost('');
-      setIsWriting(false);
+  const handlePost = async () => {
+    if (newPost.trim() && !isPosting) {
+      setIsPosting(true);
+      const success = await createPost(newPost, isAnonymous);
+      if (success) {
+        setNewPost('');
+        setIsWriting(false);
+      }
+      setIsPosting(false);
     }
   };
 
@@ -126,38 +63,57 @@ export default function Community() {
         </View>
 
         {/* Post Input */}
-        <TouchableOpacity 
-          style={styles.postInputContainer}
-          onPress={() => setIsWriting(true)}
-          activeOpacity={0.9}
-        >
-          <Ionicons name="person-circle" size={40} color="#4a90e2" />
-          <View style={styles.postInputWrapper}>
-            {isWriting ? (
-              <TextInput
-                style={styles.postInput}
-                placeholder="How are you feeling today?"
-                placeholderTextColor="#999"
-                value={newPost}
-                onChangeText={setNewPost}
-                multiline
-                autoFocus
-                onBlur={() => {
-                  if (!newPost.trim()) setIsWriting(false);
-                }}
-              />
-            ) : (
-              <Text style={styles.postInputPlaceholder}>
-                How are you feeling today?
-              </Text>
+        <View style={styles.postInputContainer}>
+          <TouchableOpacity 
+            style={styles.postInputTouchable}
+            onPress={() => setIsWriting(true)}
+            activeOpacity={0.9}
+          >
+            <Ionicons name="person-circle" size={40} color="#4a90e2" />
+            <View style={styles.postInputWrapper}>
+              {isWriting ? (
+                <TextInput
+                  style={styles.postInput}
+                  placeholder="How are you feeling today?"
+                  placeholderTextColor="#999"
+                  value={newPost}
+                  onChangeText={setNewPost}
+                  multiline
+                  autoFocus
+                  onBlur={() => {
+                    if (!newPost.trim()) setIsWriting(false);
+                  }}
+                />
+              ) : (
+                <Text style={styles.postInputPlaceholder}>
+                  How are you feeling today?
+                </Text>
+              )}
+            </View>
+            {isWriting && newPost.trim() && (
+              <TouchableOpacity onPress={handlePost} style={styles.sendButton} disabled={isPosting}>
+                {isPosting ? (
+                  <ActivityIndicator size="small" color="#4a90e2" />
+                ) : (
+                  <Ionicons name="send" size={20} color="#4a90e2" />
+                )}
+              </TouchableOpacity>
             )}
-          </View>
-          {isWriting && newPost.trim() && (
-            <TouchableOpacity onPress={handlePost} style={styles.sendButton}>
-              <Ionicons name="send" size={20} color="#4a90e2" />
-            </TouchableOpacity>
+          </TouchableOpacity>
+          
+          {/* Anonymous Toggle */}
+          {isWriting && (
+            <View style={styles.anonymousToggle}>
+              <Text style={styles.anonymousLabel}>Post anonymously</Text>
+              <Switch
+                value={isAnonymous}
+                onValueChange={setIsAnonymous}
+                trackColor={{ false: '#e0e0e0', true: '#4a90e2' }}
+                thumbColor={isAnonymous ? '#fff' : '#f4f3f4'}
+              />
+            </View>
           )}
-        </TouchableOpacity>
+        </View>
 
         {/* Posts */}
         <ScrollView 
@@ -165,40 +121,58 @@ export default function Community() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-          {posts.map((post) => (
-            <View key={post.id} style={styles.postCard}>
-              <View style={styles.postHeader}>
-                <View style={styles.authorSection}>
-                  <Ionicons name="person-circle" size={40} color="#4a90e2" />
-                  <Text style={styles.authorName}>{post.author}</Text>
-                </View>
-                <Text style={styles.timestamp}>{post.timestamp}</Text>
-              </View>
-              
-              <Text style={styles.postContent}>{post.content}</Text>
-              
-              <View style={styles.postActions}>
-                <TouchableOpacity 
-                  style={styles.actionButton}
-                  onPress={() => handleLike(post.id)}
-                >
-                  <Ionicons 
-                    name={post.isLiked ? "heart" : "heart-outline"} 
-                    size={24} 
-                    color={post.isLiked ? "#ff4757" : "#999"} 
-                  />
-                  <Text style={styles.actionCount}>{post.likes}</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity style={styles.actionButton}>
-                  <Ionicons name="chatbubble-outline" size={24} color="#999" />
-                  {post.comments > 0 && (
-                    <Text style={styles.actionCount}>{post.comments}</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#4a90e2" />
+              <Text style={styles.loadingText}>Loading posts...</Text>
             </View>
-          ))}
+          ) : posts.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="chatbubbles-outline" size={64} color="#ccc" />
+              <Text style={styles.emptyTitle}>No posts yet</Text>
+              <Text style={styles.emptySubtitle}>Be the first to share your journey!</Text>
+            </View>
+          ) : (
+            posts.map((post) => (
+              <View key={post.id} style={styles.postCard}>
+                <View style={styles.postHeader}>
+                  <View style={styles.authorSection}>
+                    <Ionicons name="person-circle" size={40} color="#4a90e2" />
+                    <View>
+                      <Text style={styles.authorName}>{post.author_name}</Text>
+                      {post.is_anonymous && (
+                        <Text style={styles.anonymousLabel}>Anonymous</Text>
+                      )}
+                    </View>
+                  </View>
+                  <Text style={styles.timestamp}>{formatTimestamp(post.created_at)}</Text>
+                </View>
+                
+                <Text style={styles.postContent}>{post.content}</Text>
+                
+                <View style={styles.postActions}>
+                  <TouchableOpacity 
+                    style={styles.actionButton}
+                    onPress={() => handleLike(post.id)}
+                  >
+                    <Ionicons 
+                      name={isPostLiked(post.id) ? "heart" : "heart-outline"} 
+                      size={24} 
+                      color={isPostLiked(post.id) ? "#ff4757" : "#999"} 
+                    />
+                    <Text style={styles.actionCount}>{post.likes_count}</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity style={styles.actionButton}>
+                    <Ionicons name="chatbubble-outline" size={24} color="#999" />
+                    {post.comments_count > 0 && (
+                      <Text style={styles.actionCount}>{post.comments_count}</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

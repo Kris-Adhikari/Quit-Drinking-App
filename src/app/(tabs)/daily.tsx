@@ -17,6 +17,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAlcoholTracking } from '@/hooks/use-alcohol-tracking';
 import { useAuth } from '@/hooks/use-auth';
+import { useCoins } from '@/hooks/use-coins';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
@@ -38,10 +39,11 @@ interface DayData {
 export default function Daily() {
   const router = useRouter();
   const { user } = useAuth();
-  const { streakData, incrementStreak } = useAlcoholTracking();
+  const { streakData, incrementStreak, todayTotal, todayLogs } = useAlcoholTracking();
+  const { coins, addCoins, loadCoins } = useCoins();
   const [tasksExpanded, setTasksExpanded] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [selectedDay, setSelectedDay] = useState(0); // 0 is today
+  const [selectedDay, setSelectedDay] = useState(0); // 0 is today (offset from todayIndex)
   const scrollViewRef = useRef<ScrollView>(null);
   
   // Store task completion states
@@ -49,6 +51,7 @@ export default function Daily() {
   const [dayCompleted, setDayCompleted] = useState<{[key: string]: boolean}>({});
   const [showCelebration, setShowCelebration] = useState(false);
   const [newStreakCount, setNewStreakCount] = useState(0);
+  const [activeTab, setActiveTab] = useState('calendar');
 
   const CARD_WIDTH = 82; // Card width + gap
 
@@ -61,11 +64,11 @@ export default function Daily() {
 
   // Scroll to today on mount
   useEffect(() => {
-    const todayIndex = streakData.current_streak;
     setTimeout(() => {
+      // Scroll to show today as the first visible day
       scrollViewRef.current?.scrollTo({ x: todayIndex * CARD_WIDTH, animated: false });
     }, 100);
-  }, [streakData.current_streak]);
+  }, [todayIndex]);
 
   // Load task completion states from AsyncStorage
   const loadTaskStates = useCallback(async () => {
@@ -84,11 +87,12 @@ export default function Daily() {
     }
   }, []);
 
-  // Reload task states when screen comes into focus
+  // Reload task states and coins when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       loadTaskStates();
-    }, [loadTaskStates])
+      loadCoins();
+    }, [loadTaskStates, loadCoins])
   );
 
   // Check day completion when task states change
@@ -97,7 +101,7 @@ export default function Daily() {
   }, [taskStates, checkDayCompletion]);
 
   const handleDayPress = (index: number) => {
-    const dayOffset = index - streakData.current_streak;
+    const dayOffset = index - todayIndex; // Calculate offset from today
     setSelectedDay(dayOffset);
     scrollViewRef.current?.scrollTo({ x: index * CARD_WIDTH, animated: true });
   };
@@ -142,6 +146,14 @@ export default function Daily() {
         completed: false,
         route: '/daily-quote',
       },
+      {
+        id: `task_drinks_${dayOffset}`,
+        title: 'Log Your Drinks',
+        duration: '2 min',
+        icon: '🍷',
+        completed: false,
+        route: '/drink-logger',
+      },
     ];
 
     // Add different tasks for different days
@@ -172,14 +184,14 @@ export default function Daily() {
     }));
   };
 
-  // Generate days array (only show streak days, today, and future days)
+  // Generate days array based on actual calendar days
   const generateDays = (): DayData[] => {
     const days: DayData[] = [];
-    const currentStreak = streakData.current_streak;
+    const today = new Date();
     
-    // Show past streak days (Day 1, Day 2, etc.)
-    for (let i = -currentStreak; i <= 7; i++) {
-      const date = new Date();
+    // Show today and next 14 days (no past days)
+    for (let i = 0; i <= 14; i++) {
+      const date = new Date(today);
       date.setDate(date.getDate() + i);
       days.push({
         date,
@@ -190,29 +202,36 @@ export default function Daily() {
   };
 
   const days = generateDays();
-  const currentDayTasks = days.find((_, index) => index === selectedDay + streakData.current_streak)?.tasks || [];
+  // Today is always index 0 (since we start from today)
+  const todayIndex = 0;
+  const currentDayTasks = days[todayIndex + selectedDay]?.tasks || [];
   const allTasksCompleted = currentDayTasks.every(task => task.completed);
 
-  // Get progress for a specific day
-  const getDayProgress = (dayOffset: number) => {
+  // Get progress for a specific day based on the day's date
+  const getDayProgress = (dayDate: Date, dayOffset: number) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const targetDay = new Date(today);
-    targetDay.setDate(targetDay.getDate() + dayOffset);
+    const targetDay = new Date(dayDate);
+    targetDay.setHours(0, 0, 0, 0);
     
-    // Check if day has streak
-    const hasStreak = dayOffset < 0 && dayOffset >= -streakData.current_streak;
-    const isToday = dayOffset === 0;
-    const isFuture = dayOffset > 0;
+    const isToday = targetDay.getTime() === today.getTime();
+    const isPast = targetDay.getTime() < today.getTime();
+    const isFuture = targetDay.getTime() > today.getTime();
     
-    // Check if today's tasks are all completed
-    const todayCompleted = isToday && dayCompleted[targetDay.toDateString()];
+    // Check if this day's tasks were completed
+    const dayWasCompleted = dayCompleted[targetDay.toDateString()];
+    
+    // Since we only show today and future days, no past days will have streaks from being "past"
+    const hasStreak = false;
+    
+    // Today shows fire if tasks are completed
+    const todayCompleted = isToday && dayWasCompleted;
     
     // Get weekday abbreviation and day number
     const weekday = targetDay.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
     const dayNumber = targetDay.getDate();
 
-    return { hasStreak, isToday, isFuture, todayCompleted, weekday, dayNumber, dayOffset };
+    return { hasStreak, isToday, isFuture, todayCompleted, weekday, dayNumber, dayOffset, isPast };
   };
 
 
@@ -251,6 +270,9 @@ export default function Daily() {
           // Increment streak
           await incrementStreak();
           
+          // Add reward coins
+          await addCoins(50);
+          
           // Show celebration popup
           setNewStreakCount(streakData.current_streak + 1);
           setShowCelebration(true);
@@ -259,7 +281,7 @@ export default function Daily() {
         }
       }
     }
-  }, [taskStates, dayCompleted, incrementStreak]);
+  }, [taskStates, dayCompleted, incrementStreak, addCoins]);
 
   const toggleTaskCompletion = async (taskId: string) => {
     const newState = {
@@ -291,7 +313,7 @@ export default function Daily() {
           <Ionicons name="bookmark-outline" size={24} color="#666" />
         </TouchableOpacity>
         <View style={styles.coinsContainer}>
-          <Text style={styles.coinsText}>🏅 435</Text>
+          <Text style={styles.coinsText}>🏅 {coins}</Text>
         </View>
       </View>
 
@@ -326,6 +348,29 @@ export default function Daily() {
           </View>
         </View>
 
+        {/* Today's Drinks Summary */}
+        <View style={styles.drinksSummaryCard}>
+          <View style={styles.drinksSummaryContent}>
+            <View style={styles.drinksSummaryIcon}>
+              <Text style={styles.drinksSummaryEmoji}>🍷</Text>
+            </View>
+            <View style={styles.drinksSummaryText}>
+              <Text style={styles.drinksSummaryTitle}>Today's Drinks</Text>
+              <Text style={styles.drinksSummaryCount}>
+                {todayTotal === 0 ? 'No drinks logged' : 
+                 todayTotal === 1 ? '1 drink' : 
+                 `${todayTotal.toFixed(1)} drinks`}
+              </Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.logDrinksQuickButton}
+              onPress={() => router.push('/drink-logger')}
+            >
+              <Text style={styles.logDrinksQuickButtonText}>Log</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Scrollable Days */}
         <ScrollView 
           ref={scrollViewRef}
@@ -338,8 +383,9 @@ export default function Daily() {
           snapToAlignment="start"
         >
           {days.map((day, index) => {
-            const dayInfo = getDayProgress(index - streakData.current_streak);
-            const isSelected = index === selectedDay + streakData.current_streak;
+            const dayOffset = index - todayIndex; // Calculate offset from today
+            const dayInfo = getDayProgress(day.date, dayOffset);
+            const isSelected = index === todayIndex + selectedDay;
             // Only pop out if selected, OR if it's today AND nothing else is selected
             const shouldPopOut = isSelected || (dayInfo.isToday && selectedDay === 0);
             return (
@@ -352,7 +398,9 @@ export default function Daily() {
                 onPress={() => handleDayPress(index)}
                 activeOpacity={0.8}
               >
-                {dayInfo.hasStreak || dayInfo.todayCompleted ? (
+                {dayInfo.hasStreak ? (
+                  <Text style={styles.fireIcon}>🔥</Text>
+                ) : dayInfo.todayCompleted ? (
                   <Text style={styles.fireIcon}>🔥</Text>
                 ) : (
                   <View style={styles.grayDot} />
@@ -361,7 +409,10 @@ export default function Daily() {
                   styles.dayLabel,
                   dayInfo.isToday && styles.dayLabelToday,
                 ]}>
-                  {dayInfo.isToday ? 'Today' : dayInfo.isFuture ? 'Day ' + (streakData.current_streak + dayInfo.dayOffset + 1) : 'Day ' + (streakData.current_streak + dayInfo.dayOffset + 1)}
+                  {dayInfo.isToday ? 'Today' : dayInfo.weekday}
+                </Text>
+                <Text style={styles.dayNumber}>
+                  {dayInfo.dayNumber}
                 </Text>
               </TouchableOpacity>
             );
@@ -375,7 +426,12 @@ export default function Daily() {
           activeOpacity={0.7}
         >
           <Text style={styles.tasksTitle}>
-            {allTasksCompleted ? '🎉 Daily Tasks Completed 🎉' : '📋 Daily Tasks'}
+            {selectedDay > 0 
+              ? '📅 Future Daily Tasks' 
+              : allTasksCompleted 
+                ? '🎉 Daily Tasks Completed 🎉' 
+                : '📋 Daily Tasks'
+            }
           </Text>
           <Ionicons 
             name={tasksExpanded ? "chevron-up" : "chevron-down"} 
@@ -386,26 +442,31 @@ export default function Daily() {
 
         {tasksExpanded && (
           <View style={styles.tasksContent}>
-            {currentDayTasks.map((task) => (
-              <TouchableOpacity 
-                key={task.id} 
-                style={[
-                  styles.taskCard,
-                  task.completed && styles.taskCardCompleted,
-                ]}
-                onPress={() => handleTaskPress(task)}
-                activeOpacity={0.8}
-              >
+            {currentDayTasks.map((task) => {
+              const isFutureDay = selectedDay > 0;
+              return (
                 <TouchableOpacity 
-                  style={styles.taskCheckbox}
-                  onPress={() => toggleTaskCompletion(task.id)}
+                  key={task.id} 
+                  style={[
+                    styles.taskCard,
+                    task.completed && styles.taskCardCompleted,
+                    isFutureDay && styles.taskCardDisabled,
+                  ]}
+                  onPress={() => !isFutureDay && handleTaskPress(task)}
+                  activeOpacity={isFutureDay ? 1 : 0.8}
+                  disabled={isFutureDay}
                 >
-                  {task.completed ? (
-                    <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
-                  ) : (
-                    <Ionicons name="ellipse-outline" size={24} color="#999" />
-                  )}
-                </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.taskCheckbox}
+                    onPress={() => !isFutureDay && toggleTaskCompletion(task.id)}
+                    disabled={isFutureDay}
+                  >
+                    {task.completed ? (
+                      <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
+                    ) : (
+                      <Ionicons name="ellipse-outline" size={24} color={isFutureDay ? "#ccc" : "#999"} />
+                    )}
+                  </TouchableOpacity>
                 <View style={styles.taskIcon}>
                   <Text style={styles.taskIconText}>{task.icon}</Text>
                 </View>
@@ -413,13 +474,17 @@ export default function Daily() {
                   <Text style={[
                     styles.taskTitle,
                     task.completed && styles.taskTitleCompleted,
+                    isFutureDay && styles.taskTitleDisabled,
                   ]}>
                     {task.title}
                   </Text>
-                  <Text style={styles.taskDuration}>{task.duration}</Text>
+                  <Text style={[
+                    styles.taskDuration,
+                    isFutureDay && styles.taskDurationDisabled,
+                  ]}>{task.duration}</Text>
                 </View>
               </TouchableOpacity>
-            ))}
+            )})}
           </View>
         )}
 
@@ -442,6 +507,257 @@ export default function Daily() {
               <Text style={styles.leafEmoji2}>🍁</Text>
             </View>
           </TouchableOpacity>
+        </View>
+
+        {/* Drink Logging Section */}
+        <View style={styles.drinkSection}>
+          <Text style={styles.drinkSectionTitle}>Track Your Progress</Text>
+          
+
+          {/* Drink Calendar */}
+          <View style={styles.drinkCalendar}>
+            {/* Tab Navigation */}
+            <View style={styles.tabContainer}>
+              <TouchableOpacity 
+                style={[styles.tab, activeTab === 'calendar' && styles.activeTab]}
+                onPress={() => setActiveTab('calendar')}
+              >
+                <Text style={[styles.tabText, activeTab === 'calendar' && styles.activeTabText]}>Calendar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.tab, activeTab === 'chart' && styles.activeTab]}
+                onPress={() => setActiveTab('chart')}
+              >
+                <Text style={[styles.tabText, activeTab === 'chart' && styles.activeTabText]}>Chart</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.tab, activeTab === 'insights' && styles.activeTab]}
+                onPress={() => setActiveTab('insights')}
+              >
+                <Text style={[styles.tabText, activeTab === 'insights' && styles.activeTabText]}>Insights</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Calendar Tab */}
+            {activeTab === 'calendar' && (
+              <View>
+                <View style={styles.calendarHeader}>
+                  <TouchableOpacity style={styles.monthNavButton}>
+                    <Ionicons name="chevron-back" size={20} color="#666" />
+                  </TouchableOpacity>
+                  <Text style={styles.calendarTitle}>
+                    {currentTime.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  </Text>
+                  <TouchableOpacity style={styles.monthNavButton}>
+                    <Ionicons name="chevron-forward" size={20} color="#666" />
+                  </TouchableOpacity>
+                </View>
+            
+            {/* Calendar Grid */}
+            <View style={styles.calendarGrid}>
+              {/* Day Headers */}
+              <View style={styles.dayHeadersRow}>
+                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
+                  <Text key={index} style={styles.dayHeader}>{day}</Text>
+                ))}
+              </View>
+              
+              {/* Calendar Days */}
+              {(() => {
+                const today = new Date();
+                const currentMonth = today.getMonth();
+                const currentYear = today.getFullYear();
+                const todayDate = today.getDate();
+                
+                // Get first day of month and number of days
+                const firstDay = new Date(currentYear, currentMonth, 1);
+                const lastDay = new Date(currentYear, currentMonth + 1, 0);
+                const daysInMonth = lastDay.getDate();
+                const startingDayOfWeek = firstDay.getDay(); // 0 = Sunday
+                
+                // Get real drink data from tracking hook
+                // This will be empty initially until we connect to the database
+                const getDrinkData = (day: number) => {
+                  // Only show data for today if it exists
+                  if (day === todayDate) {
+                    // Check if the drink task was completed today (which means they logged drinks or pressed "No Drinks")
+                    const drinkTaskCompleted = taskStates[`task_drinks_0`] || false;
+                    const hasData = drinkTaskCompleted;
+                    const isSober = drinkTaskCompleted && todayTotal === 0;
+                    
+                    return { 
+                      isSober: isSober,
+                      drinkCount: Math.round(todayTotal),
+                      hasData: hasData
+                    };
+                  }
+                  // Future days and past days without data show as empty
+                  return { isSober: false, drinkCount: 0, hasData: false };
+                };
+                
+                const weeks = [];
+                let dayCounter = 1;
+                
+                // Calculate number of weeks needed
+                const totalCells = startingDayOfWeek + daysInMonth;
+                const numWeeks = Math.ceil(totalCells / 7);
+                
+                for (let weekIndex = 0; weekIndex < numWeeks; weekIndex++) {
+                  const week = [];
+                  
+                  for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+                    const cellIndex = weekIndex * 7 + dayIndex;
+                    
+                    // Empty cells before month starts
+                    if (cellIndex < startingDayOfWeek) {
+                      week.push(<View key={`empty-${dayIndex}`} style={styles.calendarDayCell} />);
+                    }
+                    // Days of the month
+                    else if (dayCounter <= daysInMonth) {
+                      const currentDay = dayCounter;
+                      const isToday = currentDay === todayDate;
+                      const isPast = currentDay < todayDate;
+                      const drinkData = getDrinkData(currentDay);
+                      
+                      // Only show green if explicitly marked as sober (task completed + no drinks)
+                      let bgColor = '#ffffff';
+                      if (isToday && drinkData.isSober) {
+                        bgColor = '#10b981'; // Green for sober days
+                      }
+                      
+                      week.push(
+                        <TouchableOpacity 
+                          key={`day-${currentDay}`}
+                          style={[
+                            styles.calendarDayCell,
+                            isPast && styles.calendarDayCellPast,
+                            isToday && styles.calendarDayCellToday,
+                            isToday && drinkData.isSober && styles.calendarDayCellSober,
+                            { backgroundColor: bgColor }
+                          ]}
+                        >
+                          <Text style={[
+                            styles.calendarDayNumber,
+                            isToday && styles.todayNumber,
+                            !isPast && !isToday && styles.futureNumber,
+                            isToday && drinkData.isSober && styles.soberDayNumber
+                          ]}>
+                            {currentDay}
+                          </Text>
+                          {isToday && drinkData.hasData && (
+                            drinkData.isSober ? (
+                              <Text style={styles.calendarEmojiSober}>✨</Text>
+                            ) : drinkData.drinkCount > 0 ? (
+                              <View style={styles.drinkCountBadge}>
+                                <Text style={styles.drinkCountText}>{drinkData.drinkCount}</Text>
+                              </View>
+                            ) : null
+                          )}
+                        </TouchableOpacity>
+                      );
+                      dayCounter++;
+                    }
+                    // Empty cells after month ends
+                    else {
+                      week.push(<View key={`empty-end-${dayIndex}`} style={styles.calendarDayCell} />);
+                    }
+                  }
+                  
+                  weeks.push(
+                    <View key={`week-${weekIndex}`} style={styles.calendarWeekRow}>
+                      {week}
+                    </View>
+                  );
+                }
+                
+                return weeks;
+              })()}
+            </View>
+              </View>
+            )}
+
+            {/* Chart Tab */}
+            {activeTab === 'chart' && (
+              <View style={styles.chartContainer}>
+                <View style={styles.chartHeader}>
+                  <Text style={styles.chartTitle}>MAR 1 - MAR 31</Text>
+                  <Text style={styles.chartPeriod}>Weekly</Text>
+                </View>
+                
+                <View style={styles.statsContainer}>
+                  <Text style={styles.totalDrinks}>41 Drinks</Text>
+                  <View style={styles.statsRow}>
+                    <View style={styles.statItem}>
+                      <Ionicons name="trending-down" size={16} color="#10b981" />
+                      <Text style={styles.statText}>6 drinks less than last month</Text>
+                    </View>
+                    <View style={styles.statItem}>
+                      <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+                      <Text style={styles.statText}>Under weekly target</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Mock Chart */}
+                <View style={styles.chartArea}>
+                  <View style={styles.chartBars}>
+                    {[2, 4, 1, 3, 6, 2, 3].map((height, index) => (
+                      <View key={index} style={styles.chartBarContainer}>
+                        <View style={[styles.chartBar, { height: height * 10 + 20 }]} />
+                        <Text style={styles.chartLabel}>
+                          MAR {index === 0 ? '1' : index === 1 ? '8' : index === 2 ? '15' : index === 3 ? '22' : '29'}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* Insights Tab */}
+            {activeTab === 'insights' && (
+              <View style={styles.insightsContainer}>
+                <View style={styles.insightCard}>
+                  <View style={styles.insightHeader}>
+                    <Ionicons name="trending-up" size={24} color="#4169e1" />
+                    <Text style={styles.insightTitle}>Weekly Pattern</Text>
+                  </View>
+                  <Text style={styles.insightText}>
+                    You tend to drink more on weekends. Consider planning alcohol-free activities for Friday and Saturday nights.
+                  </Text>
+                </View>
+                
+                <View style={styles.insightCard}>
+                  <View style={styles.insightHeader}>
+                    <Ionicons name="time" size={24} color="#f59e0b" />
+                    <Text style={styles.insightTitle}>Peak Hours</Text>
+                  </View>
+                  <Text style={styles.insightText}>
+                    Most drinking occurs between 7-9 PM. Try having a non-alcoholic drink ready during this time.
+                  </Text>
+                </View>
+                
+                <View style={styles.insightCard}>
+                  <View style={styles.insightHeader}>
+                    <Ionicons name="trophy" size={24} color="#10b981" />
+                    <Text style={styles.insightTitle}>Progress</Text>
+                  </View>
+                  <Text style={styles.insightText}>
+                    Great job! You've reduced your weekly intake by 30% compared to last month. Keep it up!
+                  </Text>
+                </View>
+              </View>
+            )}
+            
+            <View style={styles.calendarFooter}>
+              <TouchableOpacity 
+                style={styles.logDrinksButton}
+                onPress={() => router.push('/drink-logger')}
+              >
+                <Text style={styles.logDrinksButtonText}>Log Your Drinks</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </ScrollView>
 
@@ -649,6 +965,12 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
     fontWeight: '600',
   },
+  dayNumber: {
+    fontSize: 12,
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 2,
+  },
   tasksHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -687,6 +1009,10 @@ const styles = StyleSheet.create({
   taskCardCompleted: {
     opacity: 0.7,
   },
+  taskCardDisabled: {
+    opacity: 0.5,
+    backgroundColor: '#f8f8f8',
+  },
   taskCheckbox: {
     marginRight: 12,
   },
@@ -715,9 +1041,15 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
     color: '#999',
   },
+  taskTitleDisabled: {
+    color: '#ccc',
+  },
   taskDuration: {
     fontSize: 14,
     color: '#999',
+  },
+  taskDurationDisabled: {
+    color: '#ccc',
   },
   bonusSection: {
     marginTop: 10,
@@ -787,6 +1119,298 @@ const styles = StyleSheet.create({
     right: 40,
     bottom: 30,
     transform: [{ rotate: '-20deg' }],
+  },
+  // Drink Logging Styles
+  drinkSection: {
+    marginTop: 10,
+  },
+  drinkSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 16,
+  },
+  logDrinksCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  logDrinksContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  logDrinksIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#f0f8ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  drinkEmoji: {
+    fontSize: 24,
+  },
+  logDrinksText: {
+    flex: 1,
+  },
+  logDrinksTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginBottom: 2,
+  },
+  logDrinksSubtitle: {
+    fontSize: 14,
+    color: '#666',
+  },
+  logDrinksCheck: {
+    padding: 4,
+  },
+  drinkCalendar: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 16,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  activeTab: {
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#666',
+  },
+  activeTabText: {
+    color: '#4169e1',
+    fontWeight: '600',
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  monthNavButton: {
+    padding: 8,
+  },
+  calendarTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a1a1a',
+  },
+  calendarGrid: {
+    marginBottom: 16,
+  },
+  dayHeadersRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  dayHeader: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+  },
+  calendarWeekRow: {
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
+  calendarDayCell: {
+    flex: 1,
+    height: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    margin: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
+  },
+  calendarDayCellPast: {
+    borderColor: '#f0f0f0',
+  },
+  calendarDayCellToday: {
+    borderWidth: 2,
+    borderColor: '#4169e1',
+  },
+  calendarDayCellSober: {
+    borderColor: 'transparent',
+  },
+  calendarDayNumber: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+  },
+  todayNumber: {
+    fontWeight: '700',
+    color: '#4169e1',
+  },
+  futureNumber: {
+    color: '#999',
+  },
+  soberDayNumber: {
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  calendarEmojiSober: {
+    fontSize: 16,
+    marginTop: 2,
+    color: '#ffffff',
+  },
+  drinkCountBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#fbbf24',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  drinkCountText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  calendarFooter: {
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    paddingTop: 16,
+  },
+  logDrinksButton: {
+    backgroundColor: '#4169e1',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  logDrinksButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  // Chart Tab Styles
+  chartContainer: {
+    marginBottom: 16,
+  },
+  chartHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  chartTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+  },
+  chartPeriod: {
+    fontSize: 14,
+    color: '#4169e1',
+    fontWeight: '500',
+  },
+  statsContainer: {
+    marginBottom: 20,
+  },
+  totalDrinks: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 8,
+  },
+  statsRow: {
+    gap: 8,
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  statText: {
+    fontSize: 12,
+    color: '#666',
+  },
+  chartArea: {
+    height: 120,
+    marginBottom: 16,
+  },
+  chartBars: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    height: 80,
+    paddingHorizontal: 8,
+  },
+  chartBarContainer: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  chartBar: {
+    backgroundColor: '#4169e1',
+    width: 20,
+    borderRadius: 2,
+    marginBottom: 8,
+  },
+  chartLabel: {
+    fontSize: 10,
+    color: '#666',
+    textAlign: 'center',
+  },
+  // Insights Tab Styles
+  insightsContainer: {
+    gap: 12,
+    marginBottom: 16,
+  },
+  insightCard: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 16,
+  },
+  insightHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  insightTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a1a1a',
+  },
+  insightText: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
   },
   // Celebration Popup Styles
   celebrationOverlay: {
@@ -946,5 +1570,58 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#856404',
+  },
+  // Drinks Summary Card Styles
+  drinksSummaryCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  drinksSummaryContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  drinksSummaryIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#f0f8ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  drinksSummaryEmoji: {
+    fontSize: 24,
+  },
+  drinksSummaryText: {
+    flex: 1,
+  },
+  drinksSummaryTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginBottom: 2,
+  },
+  drinksSummaryCount: {
+    fontSize: 14,
+    color: '#666',
+  },
+  logDrinksQuickButton: {
+    backgroundColor: '#4169e1',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  logDrinksQuickButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff',
   },
 });

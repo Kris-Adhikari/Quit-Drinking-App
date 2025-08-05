@@ -3,7 +3,25 @@ export interface AlcoholLog {
   user_id: string;
   amount: number;
   drink_type: string;
+  price?: number;
+  calories?: number;
+  alcohol_content?: number; // ABV percentage
+  volume?: number; // in ml or oz
+  notes?: string;
   timestamp: string;
+  created_at: string;
+}
+
+export interface CustomDrink {
+  id: string;
+  user_id: string;
+  name: string;
+  emoji?: string;
+  price: number;
+  calories: number;
+  alcohol_content: number; // ABV percentage
+  volume: number; // in ml
+  standard_drinks: number; // calculated from volume and ABV
   created_at: string;
 }
 

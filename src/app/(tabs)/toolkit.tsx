@@ -77,6 +77,15 @@ export default function Toolkit() {
     }
   };
 
+  const handleAITherapistPress = () => {
+    router.push('/ai-therapist');
+  };
+
+  const handlePrivateCoachingPress = () => {
+    // TODO: Redirect to Calendly link
+    console.log('Private coaching pressed - Calendly integration pending');
+  };
+
   const handleSeeAll = (section: string) => {
     console.log(`See all ${section}`);
     // Navigate to full list
@@ -113,6 +122,40 @@ export default function Toolkit() {
           </View>
           <View style={styles.brainIconContainer}>
             <MaterialCommunityIcons name="head-lightbulb" size={60} color="#ffffff" />
+          </View>
+        </TouchableOpacity>
+
+        {/* AI Therapist Section */}
+        <TouchableOpacity 
+          style={styles.aiTherapistBanner}
+          onPress={handleAITherapistPress}
+          activeOpacity={0.9}
+        >
+          <View style={styles.aiTherapistContent}>
+            <Text style={styles.aiTherapistTitle}>AI Therapist</Text>
+            <Text style={styles.aiTherapistSubtitle}>
+              24/7 support from your personal AI recovery companion
+            </Text>
+          </View>
+          <View style={styles.aiIconContainer}>
+            <MaterialCommunityIcons name="robot-excited" size={60} color="#ffffff" />
+          </View>
+        </TouchableOpacity>
+
+        {/* Private Coaching Section */}
+        <TouchableOpacity 
+          style={styles.coachingBanner}
+          onPress={handlePrivateCoachingPress}
+          activeOpacity={0.9}
+        >
+          <View style={styles.coachingContent}>
+            <Text style={styles.coachingTitle}>Private Coaching</Text>
+            <Text style={styles.coachingSubtitle}>
+              One-on-one sessions with certified recovery coaches
+            </Text>
+          </View>
+          <View style={styles.coachingIconContainer}>
+            <MaterialCommunityIcons name="account-tie" size={60} color="#ffffff" />
           </View>
         </TouchableOpacity>
 
@@ -244,6 +287,64 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   brainIconContainer: {
+    position: 'relative',
+  },
+  aiTherapistBanner: {
+    backgroundColor: '#7c3aed',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 30,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  aiTherapistContent: {
+    flex: 1,
+    paddingRight: 20,
+  },
+  aiTherapistTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginBottom: 8,
+  },
+  aiTherapistSubtitle: {
+    fontSize: 14,
+    color: '#ffffff',
+    opacity: 0.9,
+    lineHeight: 20,
+  },
+  aiIconContainer: {
+    position: 'relative',
+  },
+  coachingBanner: {
+    backgroundColor: '#059669',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 30,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  coachingContent: {
+    flex: 1,
+    paddingRight: 20,
+  },
+  coachingTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginBottom: 8,
+  },
+  coachingSubtitle: {
+    fontSize: 14,
+    color: '#ffffff',
+    opacity: 0.9,
+    lineHeight: 20,
+  },
+  coachingIconContainer: {
     position: 'relative',
   },
   section: {

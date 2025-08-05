@@ -1,5 +1,9 @@
-// DEVELOPMENT MODE: Supabase is disabled
-// To enable Supabase, set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in your .env file
+import { createClient } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Database } from '@/types/supabase';
+
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 // Mock Supabase client for development
 const createMockSupabaseClient = () => {
@@ -49,95 +53,20 @@ const createMockSupabaseClient = () => {
   };
 };
 
-export const supabase = createMockSupabaseClient() as any;
+// Create real Supabase client if credentials are provided, otherwise use mock
+export const supabase = supabaseUrl && supabaseAnonKey
+  ? createClient<Database>(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        storage: AsyncStorage,
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: false,
+      },
+    })
+  : createMockSupabaseClient() as any;
 
-console.log('🔧 Supabase is disabled for development. All database operations will be mocked.');
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.log('🔧 Supabase is disabled for development. All database operations will be mocked.');
+  console.log('💡 To enable Supabase, add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to your .env file');
+}
 
-// Database types
-export type Database = {
-  public: {
-    Tables: {
-      users: {
-        Row: {
-          id: string;
-          email: string;
-          drinking_history: string | null;
-          quit_goal: string | null;
-          daily_limit: number | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          email: string;
-          drinking_history?: string | null;
-          quit_goal?: string | null;
-          daily_limit?: number | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          email?: string;
-          drinking_history?: string | null;
-          quit_goal?: string | null;
-          daily_limit?: number | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-      };
-      alcohol_logs: {
-        Row: {
-          id: string;
-          user_id: string;
-          amount: number;
-          drink_type: string;
-          timestamp: string;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          amount: number;
-          drink_type: string;
-          timestamp?: string;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          user_id?: string;
-          amount?: number;
-          drink_type?: string;
-          timestamp?: string;
-          created_at?: string;
-        };
-      };
-      onboarding_data: {
-        Row: {
-          user_id: string;
-          completed_steps: string[];
-          triggers: string[];
-          preferences: Record<string, any>;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          user_id: string;
-          completed_steps?: string[];
-          triggers?: string[];
-          preferences?: Record<string, any>;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          user_id?: string;
-          completed_steps?: string[];
-          triggers?: string[];
-          preferences?: Record<string, any>;
-          created_at?: string;
-          updated_at?: string;
-        };
-      };
-    };
-  };
-};

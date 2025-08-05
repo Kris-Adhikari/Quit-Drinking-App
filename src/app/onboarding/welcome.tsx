@@ -56,6 +56,7 @@ export default function Welcome() {
             <Text style={styles.startButtonText}>Start Quiz</Text>
             <Ionicons name="chevron-forward" size={20} color="#1a1a1a" />
           </TouchableOpacity>
+
           
           <View style={styles.indicator}>
             <View style={styles.indicatorLine} />

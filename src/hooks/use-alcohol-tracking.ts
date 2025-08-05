@@ -2,35 +2,77 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { AlcoholLog, DailyTracking, StreakData, UserStats } from '@/types/alcohol-log';
 import { useAuth } from './use-auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const useAlcoholTracking = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [todayLogs, setTodayLogs] = useState<AlcoholLog[]>([]);
   
-  // Mock data for development when Supabase is not configured
-  const mockStreakData: StreakData = {
-    current_streak: 3,
-    longest_streak: 7,
-    last_drink_date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    start_date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+  // Default data for new users
+  const defaultStreakData: StreakData = {
+    current_streak: 0,
+    longest_streak: 0,
+    last_drink_date: null,
+    start_date: new Date().toISOString(),
   };
   
-  const mockStats: UserStats = {
-    total_days_tracked: 10,
-    alcohol_free_days: 7,
-    average_drinks_per_week: 4.2,
-    money_saved: 150,
-    calories_saved: 2100,
+  const defaultStats: UserStats = {
+    total_days_tracked: 1,
+    alcohol_free_days: 1,
+    average_drinks_per_week: 0,
+    money_saved: 0,
+    calories_saved: 0,
   };
   
-  const [streakData, setStreakData] = useState<StreakData>(mockStreakData);
-  const [stats, setStats] = useState<UserStats>(mockStats);
+  const [streakData, setStreakData] = useState<StreakData>(defaultStreakData);
+  const [stats, setStats] = useState<UserStats>(defaultStats);
 
   // Check if we're using mock data
   const isUsingMockData = () => {
     return true; // Always use mock data in development
   };
+
+  // Load streak data from AsyncStorage
+  const loadStreakData = useCallback(async () => {
+    try {
+      const saved = await AsyncStorage.getItem('streakData');
+      const lastStreakUpdate = await AsyncStorage.getItem('lastStreakUpdate');
+      
+      if (saved && lastStreakUpdate) {
+        const lastUpdate = new Date(lastStreakUpdate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        lastUpdate.setHours(0, 0, 0, 0);
+        
+        // Only use saved streak if it was updated today or yesterday
+        const daysDiff = Math.floor((today.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (daysDiff <= 1) {
+          setStreakData(JSON.parse(saved));
+        } else {
+          // Reset streak if it's been more than 1 day
+          console.log('Resetting streak - last update was more than 1 day ago');
+          await AsyncStorage.removeItem('streakData');
+          await AsyncStorage.removeItem('lastStreakUpdate');
+          setStreakData(defaultStreakData);
+        }
+      }
+    } catch (error) {
+      console.log('Error loading streak data:', error);
+    }
+  }, []);
+
+  // Save streak data to AsyncStorage
+  const saveStreakData = useCallback(async (data: StreakData) => {
+    try {
+      await AsyncStorage.setItem('streakData', JSON.stringify(data));
+      await AsyncStorage.setItem('lastStreakUpdate', new Date().toISOString());
+      setStreakData(data);
+    } catch (error) {
+      console.log('Error saving streak data:', error);
+    }
+  }, []);
 
   // Calculate streak from logs
   const calculateStreak = useCallback(async () => {
@@ -206,7 +248,15 @@ export const useAlcoholTracking = () => {
   }, [user]);
 
   // Add new alcohol log
-  const addAlcoholLog = async (amount: number, drinkType: string) => {
+  const addAlcoholLog = async (
+    amount: number, 
+    drinkType: string, 
+    price?: number, 
+    calories?: number, 
+    alcoholContent?: number, 
+    volume?: number, 
+    notes?: string
+  ) => {
     if (!user?.id) return;
 
     if (isUsingMockData()) {
@@ -216,6 +266,11 @@ export const useAlcoholTracking = () => {
         user_id: user.id,
         amount,
         drink_type: drinkType,
+        price,
+        calories,
+        alcohol_content: alcoholContent,
+        volume,
+        notes,
         timestamp: new Date().toISOString(),
         created_at: new Date().toISOString(),
       };
@@ -239,6 +294,11 @@ export const useAlcoholTracking = () => {
           user_id: user.id,
           amount,
           drink_type: drinkType,
+          price,
+          calories,
+          alcohol_content: alcoholContent,
+          volume,
+          notes,
           timestamp: new Date().toISOString(),
         })
         .select()
@@ -268,25 +328,32 @@ export const useAlcoholTracking = () => {
 
   // Increment streak (when all daily tasks are completed)
   const incrementStreak = async () => {
-    setStreakData(prev => ({
-      ...prev,
-      current_streak: prev.current_streak + 1,
-      longest_streak: Math.max(prev.longest_streak, prev.current_streak + 1),
-    }));
+    const newStreakData = {
+      ...streakData,
+      current_streak: streakData.current_streak + 1,
+      longest_streak: Math.max(streakData.longest_streak, streakData.current_streak + 1),
+    };
+    await saveStreakData(newStreakData);
   };
 
   // Load all data on mount and when user changes
   useEffect(() => {
+    loadStreakData(); // Always load streak data (even without user)
+    
     if (user?.id) {
       loadTodayLogs();
       calculateStreak();
       calculateStats();
     }
-  }, [user, loadTodayLogs, calculateStreak, calculateStats]);
+  }, [user, loadTodayLogs, calculateStreak, calculateStats, loadStreakData]);
+
+  // Calculate today's total drinks
+  const todayTotal = todayLogs.reduce((sum, log) => sum + log.amount, 0);
 
   return {
     loading,
     todayLogs,
+    todayTotal,
     streakData,
     stats,
     addAlcoholLog,
