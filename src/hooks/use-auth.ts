@@ -9,7 +9,9 @@ export const useAuth = () => {
 
   useEffect(() => {
     // Check if we have Supabase configured
-    const isSupabaseConfigured = process.env.EXPO_PUBLIC_SUPABASE_URL && process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+    const isSupabaseConfigured = supabaseUrl && supabaseAnonKey;
 
     if (!isSupabaseConfigured) {
       // For development without Supabase, create a mock user
@@ -17,13 +19,15 @@ export const useAuth = () => {
         id: 'mock-user-id',
         email: 'user@example.com',
         created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+        updated_at: new Date().toISOString(),
         app_metadata: {},
         user_metadata: {},
         aud: 'authenticated',
+        role: 'authenticated',
       } as User;
 
       setUser(mockUser);
-      setSession({ user: mockUser } as Session);
+      setSession({ user: mockUser, access_token: 'mock-token', token_type: 'bearer', expires_in: 3600, expires_at: Date.now() + 3600000 } as Session);
       setLoading(false);
       return;
     }

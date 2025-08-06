@@ -10,7 +10,6 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  Switch,
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,8 +23,8 @@ export default function Community() {
   const { posts, loading, createPost, toggleLike, isPostLiked, formatTimestamp } = useCommunity();
   const [newPost, setNewPost] = useState('');
   const [isWriting, setIsWriting] = useState(false);
-  const [isAnonymous, setIsAnonymous] = useState(true);
   const [isPosting, setIsPosting] = useState(false);
+
 
   const handleLike = async (postId: string) => {
     await toggleLike(postId);
@@ -34,7 +33,7 @@ export default function Community() {
   const handlePost = async () => {
     if (newPost.trim() && !isPosting) {
       setIsPosting(true);
-      const success = await createPost(newPost, isAnonymous);
+      const success = await createPost(newPost, true); // Always post anonymously
       if (success) {
         setNewPost('');
         setIsWriting(false);
@@ -53,43 +52,40 @@ export default function Community() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.profileButton}>
-            <Ionicons name="person-circle" size={32} color="#4a90e2" />
-          </TouchableOpacity>
           <Text style={styles.headerTitle}>Forum</Text>
-          <TouchableOpacity style={styles.searchButton}>
-            <Ionicons name="search" size={24} color="#4a90e2" />
-          </TouchableOpacity>
         </View>
 
         {/* Post Input */}
-        <View style={styles.postInputContainer}>
-          <TouchableOpacity 
-            style={styles.postInputTouchable}
-            onPress={() => setIsWriting(true)}
-            activeOpacity={0.9}
-          >
+        <View style={styles.postSection}>
+          <Text style={styles.postPrompt}>Tap below to share your thoughts and connect with the community</Text>
+          <View style={styles.postInputContainer}>
             <Ionicons name="person-circle" size={40} color="#4a90e2" />
-            <View style={styles.postInputWrapper}>
-              {isWriting ? (
-                <TextInput
-                  style={styles.postInput}
-                  placeholder="How are you feeling today?"
-                  placeholderTextColor="#999"
-                  value={newPost}
-                  onChangeText={setNewPost}
-                  multiline
-                  autoFocus
-                  onBlur={() => {
-                    if (!newPost.trim()) setIsWriting(false);
-                  }}
-                />
-              ) : (
-                <Text style={styles.postInputPlaceholder}>
-                  How are you feeling today?
-                </Text>
-              )}
-            </View>
+            <TouchableOpacity 
+              style={styles.postInputTouchable}
+              onPress={() => setIsWriting(true)}
+              activeOpacity={0.9}
+            >
+              <View style={styles.postInputWrapper}>
+                {isWriting ? (
+                  <TextInput
+                    style={styles.postInput}
+                    placeholder="How are you feeling today?"
+                    placeholderTextColor="#999"
+                    value={newPost}
+                    onChangeText={setNewPost}
+                    multiline
+                    autoFocus
+                    onBlur={() => {
+                      if (!newPost.trim()) setIsWriting(false);
+                    }}
+                  />
+                ) : (
+                  <Text style={styles.postInputPlaceholder}>
+                    How are you feeling today?
+                  </Text>
+                )}
+              </View>
+            </TouchableOpacity>
             {isWriting && newPost.trim() && (
               <TouchableOpacity onPress={handlePost} style={styles.sendButton} disabled={isPosting}>
                 {isPosting ? (
@@ -99,20 +95,7 @@ export default function Community() {
                 )}
               </TouchableOpacity>
             )}
-          </TouchableOpacity>
-          
-          {/* Anonymous Toggle */}
-          {isWriting && (
-            <View style={styles.anonymousToggle}>
-              <Text style={styles.anonymousLabel}>Post anonymously</Text>
-              <Switch
-                value={isAnonymous}
-                onValueChange={setIsAnonymous}
-                trackColor={{ false: '#e0e0e0', true: '#4a90e2' }}
-                thumbColor={isAnonymous ? '#fff' : '#f4f3f4'}
-              />
-            </View>
-          )}
+          </View>
         </View>
 
         {/* Posts */}
@@ -162,13 +145,6 @@ export default function Community() {
                     />
                     <Text style={styles.actionCount}>{post.likes_count}</Text>
                   </TouchableOpacity>
-                  
-                  <TouchableOpacity style={styles.actionButton}>
-                    <Ionicons name="chatbubble-outline" size={24} color="#999" />
-                    {post.comments_count > 0 && (
-                      <Text style={styles.actionCount}>{post.comments_count}</Text>
-                    )}
-                  </TouchableOpacity>
                 </View>
               </View>
             ))
@@ -189,30 +165,32 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 50, // Increased top padding for status bar
     paddingBottom: 15,
     backgroundColor: '#e8f4ff',
   },
-  profileButton: {
-    padding: 4,
-  },
   headerTitle: {
     fontSize: 20,
     fontWeight: '600',
     color: '#1a1a1a',
   },
-  searchButton: {
-    padding: 8,
+  postSection: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+  },
+  postPrompt: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+    paddingHorizontal: 4,
   },
   postInputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     backgroundColor: '#ffffff',
-    marginHorizontal: 20,
-    marginBottom: 20,
     padding: 16,
     borderRadius: 24,
     shadowColor: '#000',
@@ -221,10 +199,13 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 3,
   },
-  postInputWrapper: {
+  postInputTouchable: {
     flex: 1,
     marginLeft: 12,
     marginRight: 8,
+  },
+  postInputWrapper: {
+    flex: 1,
   },
   postInput: {
     fontSize: 16,
@@ -240,7 +221,12 @@ const styles = StyleSheet.create({
   },
   sendButton: {
     padding: 8,
-    marginTop: -4,
+    alignSelf: 'flex-end',
+    marginLeft: 8,
+  },
+  anonymousLabel: {
+    fontSize: 14,
+    color: '#666',
   },
   content: {
     flex: 1,
@@ -248,6 +234,35 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingBottom: 40,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 12,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#666',
+    marginTop: 16,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 4,
+    textAlign: 'center',
   },
   postCard: {
     backgroundColor: '#ffffff',

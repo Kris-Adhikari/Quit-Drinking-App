@@ -39,8 +39,8 @@ export default function PreviousAttempts() {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Goal</Text>
         <View style={styles.progressContainer}>
-          <View style={styles.progressDot} />
-          <View style={styles.progressDot} />
+          <View style={[styles.progressDot, styles.progressDotActive]} />
+          <View style={[styles.progressDot, styles.progressDotActive]} />
           <View style={[styles.progressDot, styles.progressDotActive]} />
           <View style={styles.progressDot} />
         </View>

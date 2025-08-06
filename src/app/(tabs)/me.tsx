@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useCallback } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   View,
   Text,
@@ -12,160 +13,88 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAlcoholTracking } from '@/hooks/use-alcohol-tracking';
 import { useAuth } from '@/hooks/use-auth';
+import { useCoins } from '@/hooks/use-coins';
 
-// Achievement definitions
-const achievementCategories = {
-  streaks: {
-    title: 'Streak Achievements',
-    achievements: [
-      {
-        id: 'first_day',
-        name: 'First Step',
-        description: 'Complete your first day alcohol-free',
-        requirement: 1,
-        type: 'streak',
-        badgeColor: '#4CAF50',
-      },
-      {
-        id: 'week_warrior',
-        name: 'Week Warrior',
-        description: 'Maintain a 7-day streak',
-        requirement: 7,
-        type: 'streak',
-        badgeColor: '#2196F3',
-      },
-      {
-        id: 'fortnight_fortress',
-        name: 'Fortress',
-        description: 'Achieve a 14-day streak',
-        requirement: 14,
-        type: 'streak',
-        badgeColor: '#9C27B0',
-      },
-      {
-        id: 'monthly_master',
-        name: 'Trailblazer',
-        description: 'Complete a 30-day streak',
-        requirement: 30,
-        type: 'streak',
-        badgeColor: '#FF9800',
-      },
-      {
-        id: 'diamond_days',
-        name: 'Diamond',
-        description: 'Reach a 60-day streak',
-        requirement: 60,
-        type: 'streak',
-        badgeColor: '#00BCD4',
-      },
-      {
-        id: 'emerald_elite',
-        name: 'Emerald',
-        description: 'Achieve a 90-day streak',
-        requirement: 90,
-        type: 'streak',
-        badgeColor: '#4CAF50',
-      },
-    ],
+// Coin-based badges
+const coinBadges = [
+  {
+    id: 'bronze',
+    name: 'Bronze Badge',
+    description: 'Purchase with 2000 coins',
+    cost: 2000,
+    badgeColor: '#CD7F32',
+    emoji: '🥉',
   },
-  monthly: {
-    title: 'Monthly Progress',
-    achievements: [
-      {
-        id: 'perfect_month',
-        name: 'Perfect Month',
-        description: 'Complete a month with 0 drinks',
-        requirement: 100,
-        type: 'monthly_percentage',
-        badgeColor: '#FFD700',
-      },
-      {
-        id: 'excellent_month',
-        name: 'Excellent',
-        description: 'Complete a month with 90%+ alcohol-free days',
-        requirement: 90,
-        type: 'monthly_percentage',
-        badgeColor: '#8BC34A',
-      },
-      {
-        id: 'great_month',
-        name: 'Great Progress',
-        description: 'Complete a month with 75%+ alcohol-free days',
-        requirement: 75,
-        type: 'monthly_percentage',
-        badgeColor: '#03A9F4',
-      },
-      {
-        id: 'good_start',
-        name: 'Good Start',
-        description: 'Complete a month with 50%+ alcohol-free days',
-        requirement: 50,
-        type: 'monthly_percentage',
-        badgeColor: '#FF5722',
-      },
-    ],
+  {
+    id: 'silver',
+    name: 'Silver Badge', 
+    description: 'Purchase with 5000 coins',
+    cost: 5000,
+    badgeColor: '#C0C0C0',
+    emoji: '🥈',
   },
-  milestones: {
-    title: 'Special Milestones',
-    achievements: [
-      {
-        id: 'first_week',
-        name: 'Commitment',
-        description: 'Track your progress for 7 days',
-        requirement: 7,
-        type: 'days_tracked',
-        badgeColor: '#9E9E9E',
-      },
-      {
-        id: 'habit_builder',
-        name: 'Habit Builder',
-        description: 'Track your progress for 21 days',
-        requirement: 21,
-        type: 'days_tracked',
-        badgeColor: '#795548',
-      },
-      {
-        id: 'consistency_king',
-        name: 'Consistency',
-        description: 'Track your progress for 100 days',
-        requirement: 100,
-        type: 'days_tracked',
-        badgeColor: '#E91E63',
-      },
-    ],
+  {
+    id: 'gold',
+    name: 'Gold Badge',
+    description: 'Purchase with 10000 coins',
+    cost: 10000,
+    badgeColor: '#FFD700',
+    emoji: '🥇',
   },
-};
+  {
+    id: 'emerald',
+    name: 'Emerald Badge',
+    description: 'Purchase with 20000 coins',
+    cost: 20000,
+    badgeColor: '#50C878',
+    emoji: '💚',
+  },
+  {
+    id: 'diamond',
+    name: 'Diamond Badge',
+    description: 'Purchase with 40000 coins',
+    cost: 40000,
+    badgeColor: '#B9F2FF',
+    emoji: '💎',
+  },
+  {
+    id: 'platinum',
+    name: 'Platinum Badge',
+    description: 'Purchase with 100000 coins',
+    cost: 100000,
+    badgeColor: '#E5E4E2',
+    emoji: '🏆',
+  },
+];
 
 export default function Profile() {
   const router = useRouter();
   const { user } = useAuth();
-  const { streakData, stats } = useAlcoholTracking();
+  const { streakData } = useAlcoholTracking();
+  const { coins, spendCoins, ownedBadges, purchaseBadge, loadCoins, loadOwnedBadges } = useCoins();
 
-  // Calculate current month's alcohol-free percentage
-  const getCurrentMonthPercentage = () => {
-    const now = new Date();
-    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const daysPassed = now.getDate();
-    
-    // For demo purposes, calculate based on current streak vs days passed
-    const alcoholFreeDaysThisMonth = Math.min(streakData.current_streak, daysPassed);
-    return Math.round((alcoholFreeDaysThisMonth / daysPassed) * 100);
+  // Reload coins and badges when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      const loadData = async () => {
+        await loadCoins();
+        await loadOwnedBadges();
+      };
+      loadData();
+    }, [loadCoins, loadOwnedBadges])
+  );
+
+  // Check if badge is owned or can be purchased
+  const canPurchaseBadge = (badge: any) => {
+    return coins >= badge.cost && !ownedBadges.includes(badge.id);
   };
 
-  const currentMonthPercentage = getCurrentMonthPercentage();
-
-  // Check if achievement is unlocked
-  const isAchievementUnlocked = (achievement: any) => {
-    switch (achievement.type) {
-      case 'streak':
-        return streakData.current_streak >= achievement.requirement || streakData.longest_streak >= achievement.requirement;
-      case 'monthly_percentage':
-        return currentMonthPercentage >= achievement.requirement;
-      case 'days_tracked':
-        return stats.total_days_tracked >= achievement.requirement;
-      default:
-        return false;
+  const handlePurchaseBadge = async (badge: any) => {
+    if (canPurchaseBadge(badge)) {
+      const success = await spendCoins(badge.cost);
+      if (success) {
+        await purchaseBadge(badge.id);
+      }
     }
   };
 
@@ -175,37 +104,43 @@ export default function Profile() {
   };
 
   const handleSettings = () => {
-    // Settings functionality can be added later
-    console.log('Settings clicked');
+    router.push('/settings');
   };
 
-  const AchievementBadge = ({ achievement, unlocked }: { achievement: any; unlocked: boolean }) => (
-    <TouchableOpacity style={styles.achievementItem} activeOpacity={0.8}>
-      <View style={[
-        styles.achievementBadge,
-        { backgroundColor: unlocked ? achievement.badgeColor : '#E0E0E0' }
-      ]}>
+  const BadgeItem = ({ badge }: { badge: any }) => {
+    const isOwned = ownedBadges.includes(badge.id);
+    const canPurchase = canPurchaseBadge(badge);
+    
+    return (
+      <TouchableOpacity 
+        style={styles.badgeItem} 
+        activeOpacity={0.8}
+        onPress={() => !isOwned && handlePurchaseBadge(badge)}
+        disabled={isOwned || !canPurchase}
+      >
         <View style={[
-          styles.achievementIcon,
-          { backgroundColor: unlocked ? '#FFFFFF' : '#BDBDBD' }
+          styles.badgeCircle,
+          { backgroundColor: isOwned ? badge.badgeColor : '#E0E0E0' }
         ]}>
-          {unlocked && <Ionicons name="checkmark" size={16} color={achievement.badgeColor} />}
+          <Text style={styles.badgeEmoji}>
+            {isOwned ? badge.emoji : '🔒'}
+          </Text>
         </View>
-      </View>
-      <Text style={[
-        styles.achievementName,
-        { color: unlocked ? '#1a1a1a' : '#999999' }
-      ]}>
-        {achievement.name}
-      </Text>
-      <Text style={[
-        styles.achievementDescription,
-        { color: unlocked ? '#666666' : '#BBBBBB' }
-      ]}>
-        {achievement.description}
-      </Text>
-    </TouchableOpacity>
-  );
+        <Text style={[
+          styles.badgeName,
+          { color: isOwned ? '#1a1a1a' : canPurchase ? '#4169e1' : '#999999' }
+        ]}>
+          {badge.name}
+        </Text>
+        <Text style={[
+          styles.badgeDescription,
+          { color: isOwned ? '#666666' : '#BBBBBB' }
+        ]}>
+          {isOwned ? 'Owned' : `${badge.cost} coins`}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -214,14 +149,9 @@ export default function Profile() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Profile</Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity onPress={handleEditProfile} style={styles.headerButton}>
-            <Ionicons name="create-outline" size={24} color="#1a1a1a" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleSettings} style={styles.headerButton}>
-            <Ionicons name="settings-outline" size={24} color="#1a1a1a" />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity onPress={handleSettings} style={styles.headerButton}>
+          <Ionicons name="settings-outline" size={24} color="#1a1a1a" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView 
@@ -240,62 +170,56 @@ export default function Profile() {
           </View>
           <Text style={styles.userName}>{user?.email?.split('@')[0] || 'User'}</Text>
           <Text style={styles.userEmail}>{user?.email || 'user@example.com'}</Text>
-          
-          {/* Quick Stats */}
-          <View style={styles.quickStats}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{streakData.current_streak}</Text>
-              <Text style={styles.statLabel}>Current Streak</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{stats.total_days_tracked}</Text>
-              <Text style={styles.statLabel}>Days Tracked</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{currentMonthPercentage}%</Text>
-              <Text style={styles.statLabel}>This Month</Text>
-            </View>
+        </View>
+
+        {/* Owned Badges Display */}
+        <View style={styles.ownedBadgesSection}>
+          <Text style={styles.sectionTitle}>My Badges</Text>
+          <View style={styles.ownedBadgesContainer}>
+            {ownedBadges.length === 0 ? (
+              <Text style={styles.noBadgesText}>No badges owned yet</Text>
+            ) : (
+              coinBadges
+                .filter(badge => ownedBadges.includes(badge.id))
+                .map((badge) => (
+                  <View key={badge.id} style={styles.ownedBadge}>
+                    <View style={[styles.ownedBadgeCircle, { backgroundColor: badge.badgeColor }]}>
+                      <Text style={styles.ownedBadgeEmoji}>{badge.emoji}</Text>
+                    </View>
+                    <Text style={styles.ownedBadgeName}>{badge.name}</Text>
+                  </View>
+                ))
+            )}
           </View>
         </View>
 
-        {/* Achievements Sections */}
-        {Object.entries(achievementCategories).map(([categoryKey, category]) => (
-          <View key={categoryKey} style={styles.achievementSection}>
-            <Text style={styles.sectionTitle}>{category.title}</Text>
-            <View style={styles.achievementGrid}>
-              {category.achievements.map((achievement) => (
-                <AchievementBadge
-                  key={achievement.id}
-                  achievement={achievement}
-                  unlocked={isAchievementUnlocked(achievement)}
-                />
-              ))}
+        {/* Current Streak */}
+        <View style={styles.streakCard}>
+          <Text style={styles.streakTitle}>Current Streak</Text>
+          <Text style={styles.streakNumber}>{streakData.current_streak}</Text>
+          <Text style={styles.streakLabel}>Days Alcohol-Free</Text>
+        </View>
+
+        {/* Badge Shop */}
+        <View style={styles.badgeSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Badge Shop</Text>
+            <View style={styles.coinsDisplay}>
+              <Text style={styles.coinsText}>🏅 {coins}</Text>
             </View>
           </View>
-        ))}
-
-        {/* Progress Summary */}
-        <View style={styles.progressSummary}>
-          <Text style={styles.sectionTitle}>Your Journey</Text>
-          <View style={styles.progressCard}>
-            <View style={styles.progressItem}>
-              <Text style={styles.progressLabel}>Longest Streak</Text>
-              <Text style={styles.progressValue}>{streakData.longest_streak} days</Text>
-            </View>
-            <View style={styles.progressItem}>
-              <Text style={styles.progressLabel}>Success Rate</Text>
-              <Text style={styles.progressValue}>
-                {stats.total_days_tracked > 0 
-                  ? Math.round((stats.alcohol_free_days / stats.total_days_tracked) * 100)
-                  : 0}%
-              </Text>
-            </View>
-            <View style={styles.progressItem}>
-              <Text style={styles.progressLabel}>Money Saved</Text>
-              <Text style={styles.progressValue}>${stats.money_saved}</Text>
-            </View>
+          <View style={styles.badgeGrid}>
+            {coinBadges.map((badge) => (
+              <BadgeItem
+                key={badge.id}
+                badge={badge}
+              />
+            ))}
+          </View>
+          <View style={styles.platinumRewardMessage}>
+            <Text style={styles.rewardMessageText}>
+              Hit Platinum for $300+ mystery gift! 🎁
+            </Text>
           </View>
         </View>
       </ScrollView>
@@ -313,17 +237,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 50, // Increased top padding for status bar
+    paddingTop: 50,
     paddingBottom: 10,
   },
   headerTitle: {
     fontSize: 32,
     fontWeight: '700',
     color: '#1a1a1a',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 8,
   },
   headerButton: {
     width: 40,
@@ -343,7 +263,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 24,
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 20,
   },
   avatarContainer: {
     marginBottom: 16,
@@ -370,34 +290,36 @@ const styles = StyleSheet.create({
   userEmail: {
     fontSize: 16,
     color: '#666666',
-    marginBottom: 20,
   },
-  quickStats: {
-    flexDirection: 'row',
+  streakCard: {
+    backgroundColor: '#8B5CF6',
+    borderRadius: 20,
+    padding: 32,
     alignItems: 'center',
-    justifyContent: 'center',
+    marginBottom: 30,
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
   },
-  statItem: {
-    alignItems: 'center',
-    paddingHorizontal: 20,
+  streakTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#ffffff',
+    marginBottom: 8,
   },
-  statNumber: {
-    fontSize: 28,
+  streakNumber: {
+    fontSize: 64,
     fontWeight: '700',
-    color: '#8B5CF6',
+    color: '#ffffff',
     marginBottom: 4,
   },
-  statLabel: {
-    fontSize: 12,
-    color: '#666666',
-    textAlign: 'center',
+  streakLabel: {
+    fontSize: 16,
+    color: '#e6d6ff',
   },
-  statDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: '#e0e0e0',
-  },
-  achievementSection: {
+  ownedBadgesSection: {
     marginBottom: 30,
   },
   sectionTitle: {
@@ -406,18 +328,77 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
     marginBottom: 16,
   },
-  achievementGrid: {
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  coinsDisplay: {
+    backgroundColor: '#ffd700',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  coinsText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  ownedBadgesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+    justifyContent: 'center',
+    minHeight: 80,
+    alignItems: 'center',
+  },
+  noBadgesText: {
+    fontSize: 16,
+    color: '#999',
+    fontStyle: 'italic',
+  },
+  ownedBadge: {
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  ownedBadgeCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  ownedBadgeEmoji: {
+    fontSize: 32,
+  },
+  ownedBadgeName: {
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+    color: '#1a1a1a',
+  },
+  badgeSection: {
+    marginBottom: 30,
+  },
+  badgeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 16,
     justifyContent: 'space-between',
   },
-  achievementItem: {
+  badgeItem: {
     width: '30%',
     alignItems: 'center',
     marginBottom: 20,
   },
-  achievementBadge: {
+  badgeCircle: {
     width: 60,
     height: 60,
     borderRadius: 30,
@@ -430,47 +411,33 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  achievementIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
+  badgeEmoji: {
+    fontSize: 28,
   },
-  achievementName: {
+  badgeName: {
     fontSize: 12,
     fontWeight: '600',
     textAlign: 'center',
     marginBottom: 4,
   },
-  achievementDescription: {
+  badgeDescription: {
     fontSize: 10,
     textAlign: 'center',
     lineHeight: 14,
   },
-  progressSummary: {
-    marginBottom: 20,
-  },
-  progressCard: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 16,
-    padding: 20,
-  },
-  progressItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  platinumRewardMessage: {
+    backgroundColor: '#f0f8ff',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 20,
+    borderWidth: 2,
+    borderColor: '#E5E4E2',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
   },
-  progressLabel: {
+  rewardMessageText: {
     fontSize: 16,
-    color: '#666666',
-  },
-  progressValue: {
-    fontSize: 18,
     fontWeight: '600',
     color: '#1a1a1a',
+    textAlign: 'center',
   },
 });

@@ -56,13 +56,6 @@ export default function NeuroplasticityArticle() {
     }
   };
 
-  const handleShare = () => {
-    console.log('Share article');
-  };
-
-  const handleBookmark = () => {
-    console.log('Bookmark article');
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -73,14 +66,6 @@ export default function NeuroplasticityArticle() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <View style={styles.headerActions}>
-          <TouchableOpacity onPress={handleBookmark} style={styles.actionButton}>
-            <Ionicons name="bookmark-outline" size={24} color="#333" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleShare} style={styles.actionButton}>
-            <Ionicons name="share-outline" size={24} color="#333" />
-          </TouchableOpacity>
-        </View>
       </View>
 
       <ScrollView 
@@ -217,19 +202,12 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     paddingHorizontal: 20,
     paddingTop: 50,
     paddingBottom: 20,
   },
   backButton: {
-    padding: 8,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionButton: {
     padding: 8,
   },
   content: {

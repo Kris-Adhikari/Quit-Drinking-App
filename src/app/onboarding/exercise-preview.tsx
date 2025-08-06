@@ -16,21 +16,25 @@ const exercises = [
     id: 'assessment',
     title: 'Assessment To Track Progress',
     duration: '5 min assessment',
+    emoji: '📊',
   },
   {
     id: 'breathing',
     title: 'Three Minute Breathing',
     duration: '3 min exercise',
+    emoji: '🫁',
   },
   {
     id: 'thrive',
     title: 'Thrive Tip: I Feel Left Out When I Don\'t Drink',
     duration: '2 min read',
+    emoji: '💡',
   },
   {
     id: 'dopamine',
     title: 'Alcohol, Dopamine & the Hedonic Setpoint',
     duration: '5 min read',
+    emoji: '🧠',
   },
 ];
 
@@ -66,7 +70,9 @@ export default function ExercisePreview() {
         <View style={styles.exerciseList}>
           {exercises.map((exercise) => (
             <View key={exercise.id} style={styles.exerciseCard}>
-              <View style={styles.iconPlaceholder} />
+              <View style={styles.iconContainer}>
+                <Text style={styles.exerciseEmoji}>{exercise.emoji}</Text>
+              </View>
               <View style={styles.exerciseContent}>
                 <Text style={styles.exerciseTitle}>{exercise.title}</Text>
                 <Text style={styles.exerciseDuration}>{exercise.duration}</Text>
@@ -145,12 +151,17 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
-  iconPlaceholder: {
+  iconContainer: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#f8f9ff',
     marginRight: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  exerciseEmoji: {
+    fontSize: 24,
   },
   exerciseContent: {
     flex: 1,

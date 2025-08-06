@@ -101,6 +101,9 @@ export const useAlcoholTracking = () => {
       let currentStreak = 0;
       let checkDate = new Date();
       checkDate.setHours(0, 0, 0, 0);
+      
+      // Start from yesterday to avoid counting today until it's complete
+      checkDate.setDate(checkDate.getDate() - 1);
 
       while (true) {
         const dateStr = checkDate.toDateString();
@@ -159,9 +162,46 @@ export const useAlcoholTracking = () => {
     }
   }, [user]);
 
+  // Load mock logs from AsyncStorage
+  const loadMockLogs = useCallback(async () => {
+    try {
+      const saved = await AsyncStorage.getItem('mockTodayLogs');
+      if (saved) {
+        const logs = JSON.parse(saved);
+        // Filter for today's logs only
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayLogs = logs.filter((log: AlcoholLog) => {
+          const logDate = new Date(log.timestamp);
+          logDate.setHours(0, 0, 0, 0);
+          return logDate.getTime() === today.getTime();
+        });
+        setTodayLogs(todayLogs);
+      } else {
+        setTodayLogs([]);
+      }
+    } catch (error) {
+      console.log('Error loading mock logs:', error);
+    }
+  }, []);
+
+  // Save mock logs to AsyncStorage
+  const saveMockLogs = async (logs: AlcoholLog[]) => {
+    try {
+      await AsyncStorage.setItem('mockTodayLogs', JSON.stringify(logs));
+    } catch (error) {
+      console.log('Error saving mock logs:', error);
+    }
+  };
+
   // Load today's logs
   const loadTodayLogs = useCallback(async () => {
-    if (!user?.id || isUsingMockData()) return;
+    if (!user?.id) return;
+    
+    if (isUsingMockData()) {
+      await loadMockLogs();
+      return;
+    }
 
     setLoading(true);
     try {
@@ -191,7 +231,7 @@ export const useAlcoholTracking = () => {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, loadMockLogs]);
 
   // Calculate user stats
   const calculateStats = useCallback(async () => {
@@ -275,7 +315,9 @@ export const useAlcoholTracking = () => {
         created_at: new Date().toISOString(),
       };
       
-      setTodayLogs([mockLog, ...todayLogs]);
+      const newLogs = [mockLog, ...todayLogs];
+      setTodayLogs(newLogs);
+      await saveMockLogs(newLogs); // Persist the mock logs
       
       // Reset streak if adding a drink
       setStreakData({
@@ -341,7 +383,7 @@ export const useAlcoholTracking = () => {
     loadStreakData(); // Always load streak data (even without user)
     
     if (user?.id) {
-      loadTodayLogs();
+      loadTodayLogs(); // This will now load mock logs if in mock mode
       calculateStreak();
       calculateStats();
     }
@@ -349,6 +391,15 @@ export const useAlcoholTracking = () => {
 
   // Calculate today's total drinks
   const todayTotal = todayLogs.reduce((sum, log) => sum + log.amount, 0);
+
+  // Memoize refreshData to prevent infinite re-renders
+  const refreshData = useCallback(async () => {
+    await Promise.all([
+      loadTodayLogs(),
+      calculateStreak(),
+      calculateStats(),
+    ]);
+  }, [loadTodayLogs, calculateStreak, calculateStats]);
 
   return {
     loading,
@@ -359,12 +410,6 @@ export const useAlcoholTracking = () => {
     addAlcoholLog,
     resetStreak,
     incrementStreak,
-    refreshData: async () => {
-      await Promise.all([
-        loadTodayLogs(),
-        calculateStreak(),
-        calculateStats(),
-      ]);
-    },
+    refreshData,
   };
 };

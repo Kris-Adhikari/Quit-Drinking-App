@@ -24,7 +24,7 @@ export default function Regret() {
 
   const handleContinue = () => {
     if (selectedRegret) {
-      router.push('/onboarding/challenges-preview');
+      router.push('/onboarding/typical-week');
     }
   };
 

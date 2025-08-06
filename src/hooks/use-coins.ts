@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const useCoins = () => {
   const [coins, setCoins] = useState(0);
+  const [ownedBadges, setOwnedBadges] = useState<string[]>([]);
 
   // Load coins from AsyncStorage
   const loadCoins = useCallback(async () => {
@@ -13,6 +14,18 @@ export const useCoins = () => {
       }
     } catch (error) {
       console.log('Error loading coins:', error);
+    }
+  }, []);
+
+  // Load owned badges from AsyncStorage
+  const loadOwnedBadges = useCallback(async () => {
+    try {
+      const saved = await AsyncStorage.getItem('ownedBadges');
+      if (saved) {
+        setOwnedBadges(JSON.parse(saved));
+      }
+    } catch (error) {
+      console.log('Error loading owned badges:', error);
     }
   }, []);
 
@@ -38,15 +51,29 @@ export const useCoins = () => {
     if (coins >= amount) {
       const newTotal = coins - amount;
       await saveCoins(newTotal);
-      return newTotal;
+      return true;
     }
-    return coins; // Not enough coins
+    return false; // Not enough coins
   }, [coins, saveCoins]);
 
-  // Load coins on mount
+  // Purchase badge
+  const purchaseBadge = useCallback(async (badgeId: string) => {
+    try {
+      const newBadges = [...ownedBadges, badgeId];
+      await AsyncStorage.setItem('ownedBadges', JSON.stringify(newBadges));
+      setOwnedBadges(newBadges);
+      return true;
+    } catch (error) {
+      console.log('Error purchasing badge:', error);
+      return false;
+    }
+  }, [ownedBadges]);
+
+  // Load coins and badges on mount
   useEffect(() => {
     loadCoins();
-  }, [loadCoins]);
+    loadOwnedBadges();
+  }, [loadCoins, loadOwnedBadges]);
 
   return {
     coins,
@@ -54,5 +81,8 @@ export const useCoins = () => {
     spendCoins,
     setCoins: saveCoins,
     loadCoins,
+    ownedBadges,
+    purchaseBadge,
+    loadOwnedBadges,
   };
 };

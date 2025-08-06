@@ -94,15 +94,6 @@ export default function DailyQuote() {
     }
   };
 
-  const handleShare = () => {
-    // TODO: Implement share functionality
-    console.log('Share quote:', currentQuote);
-  };
-
-  const handleFavorite = () => {
-    // TODO: Implement favorite functionality
-    console.log('Favorite quote:', currentQuote);
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -130,14 +121,6 @@ export default function DailyQuote() {
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Daily Quote</Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity onPress={handleFavorite} style={styles.actionButton}>
-            <Ionicons name="heart-outline" size={24} color="#333" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleShare} style={styles.actionButton}>
-            <Ionicons name="share-outline" size={24} color="#333" />
-          </TouchableOpacity>
-        </View>
       </View>
 
       {/* Quote Container */}
@@ -158,10 +141,6 @@ export default function DailyQuote() {
           <Text style={[styles.completeButtonText, isCompleted && styles.completeButtonTextCompleted]}>
             {isCompleted ? 'Completed! ✓' : 'Complete'}
           </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.screenshotButton}>
-          <Ionicons name="camera-outline" size={24} color="#666" />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -237,25 +216,22 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     paddingHorizontal: 20,
     paddingTop: 60,
     paddingBottom: 20,
+    position: 'relative',
   },
   backButton: {
     padding: 8,
+    position: 'absolute',
+    left: 20,
+    top: 52,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionButton: {
-    padding: 8,
   },
   content: {
     flex: 1,
@@ -292,19 +268,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   bottomSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingBottom: 40,
-    gap: 16,
   },
   completeButton: {
-    flex: 1,
     backgroundColor: '#8B7355',
     paddingVertical: 16,
     borderRadius: 25,
     alignItems: 'center',
+    width: '100%',
   },
   completeButtonCompleted: {
     backgroundColor: '#4CAF50',
@@ -316,18 +288,5 @@ const styles = StyleSheet.create({
   },
   completeButtonTextCompleted: {
     color: '#fff',
-  },
-  screenshotButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
   },
 });

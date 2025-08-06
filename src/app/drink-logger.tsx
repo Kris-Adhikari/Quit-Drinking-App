@@ -44,6 +44,7 @@ export default function DrinkLogger() {
   const [savedDrinks, setSavedDrinks] = useState<CustomDrink[]>([]);
   const [showAddDrinkModal, setShowAddDrinkModal] = useState(false);
   const [showNoDrinksCongrats, setShowNoDrinksCongrats] = useState(false);
+  const [noDrinksAlreadyLogged, setNoDrinksAlreadyLogged] = useState(false);
   
   // Quantity state for each drink
   const [quantities, setQuantities] = useState<{[key: string]: number}>({});
@@ -68,10 +69,11 @@ export default function DrinkLogger() {
 
   const emojiOptions = ['🍺', '🍷', '🥃', '🍸', '🍹', '🥂', '🍾', '🧉', '🍻', '🥤'];
 
-  // Load saved drinks
+  // Load saved drinks and check if no drinks was already logged today
   useEffect(() => {
     loadSavedDrinks();
     loadCustomizedQuickDrinks();
+    checkNoDrinksToday();
   }, []);
 
   const loadSavedDrinks = async () => {
@@ -93,6 +95,21 @@ export default function DrinkLogger() {
       }
     } catch (error) {
       console.log('Error loading customized quick drinks:', error);
+    }
+  };
+
+  const checkNoDrinksToday = async () => {
+    try {
+      const today = new Date().toDateString();
+      const noDrinksData = await AsyncStorage.getItem('noDrinksToday');
+      if (noDrinksData) {
+        const data = JSON.parse(noDrinksData);
+        if (data.date === today) {
+          setNoDrinksAlreadyLogged(true);
+        }
+      }
+    } catch (error) {
+      console.log('Error checking no drinks status:', error);
     }
   };
 
@@ -354,7 +371,7 @@ export default function DrinkLogger() {
         drink.volume * quantity
       );
       resetQuantity(drink.id);
-      await showSuccessAlert(`${quantity}x ${drink.name}`);
+      await showSuccessAlert(`${quantity}x ${drink.name}`, drink.standardDrink * quantity);
     } catch (error) {
       Alert.alert('Error', 'Failed to log drink. Please try again.');
     }
@@ -372,7 +389,7 @@ export default function DrinkLogger() {
         drink.volume * quantity
       );
       resetQuantity(drink.id);
-      await showSuccessAlert(`${quantity}x ${drink.name}`);
+      await showSuccessAlert(`${quantity}x ${drink.name}`, drink.standardDrink * quantity);
     } catch (error) {
       Alert.alert('Error', 'Failed to log drink. Please try again.');
     }
@@ -433,15 +450,34 @@ export default function DrinkLogger() {
         notes: '',
       });
       
-      await showSuccessAlert(name.trim());
+      await showSuccessAlert(name.trim(), standardDrinks);
     } catch (error) {
       Alert.alert('Error', 'Drink saved but failed to log. You can log it from your saved drinks.');
     }
   };
 
-  const showSuccessAlert = async (drinkName: string) => {
+  const showSuccessAlert = async (drinkName: string, amount: number = 1) => {
     // Mark the task as completed when a drink is logged
-    await markDrinkTaskCompleted();
+    await markDrinkTaskCompleted(true);
+    
+    // Update the drink count in storage
+    try {
+      const dateKey = new Date().toDateString();
+      const existingCountData = await AsyncStorage.getItem('todayDrinkCountDate');
+      let currentCount = 0;
+      
+      // Check if we have count from today
+      if (existingCountData === dateKey) {
+        const count = await AsyncStorage.getItem('todayDrinkCount');
+        currentCount = count ? parseFloat(count) : 0;
+      }
+      
+      const newCount = currentCount + amount;
+      await AsyncStorage.setItem('todayDrinkCount', newCount.toString());
+      await AsyncStorage.setItem('todayDrinkCountDate', dateKey);
+    } catch (error) {
+      console.log('Error updating drink count:', error);
+    }
     
     Alert.alert(
       'Drink Logged',
@@ -460,7 +496,7 @@ export default function DrinkLogger() {
     );
   };
 
-  const markDrinkTaskCompleted = async () => {
+  const markDrinkTaskCompleted = async (isDrinkLogged: boolean = true) => {
     try {
       // Get existing completed tasks
       const completedTasks = await AsyncStorage.getItem('completedTasks');
@@ -470,26 +506,66 @@ export default function DrinkLogger() {
       const todayDrinkTaskId = `task_drinks_0`; // 0 is for today
       tasks[todayDrinkTaskId] = true;
       
+      // Store whether this was from logging drinks or "No Drinks Today"
+      const drinkStatus = isDrinkLogged ? 'logged' : 'sober';
+      await AsyncStorage.setItem('todayDrinkStatus', JSON.stringify({ 
+        date: new Date().toDateString(), 
+        status: drinkStatus 
+      }));
+      
       // Save back to AsyncStorage
       await AsyncStorage.setItem('completedTasks', JSON.stringify(tasks));
-      console.log('Marked drink task as completed');
+      console.log('Marked drink task as completed with status:', drinkStatus);
     } catch (error) {
       console.log('Error marking drink task completed:', error);
     }
   };
 
   const handleNoDrinksToday = async () => {
+    // Check if already logged today
+    if (noDrinksAlreadyLogged) {
+      Alert.alert(
+        'Already Logged',
+        "You've already marked today as a no-drink day!",
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    // Check if coins were already given today
+    const today = new Date().toDateString();
+    const coinRewardKey = await AsyncStorage.getItem('noDrinksCoinsReward');
+    let shouldGiveCoins = true;
+    
+    if (coinRewardKey) {
+      const rewardData = JSON.parse(coinRewardKey);
+      if (rewardData.date === today) {
+        shouldGiveCoins = false;
+      }
+    }
+    
     setShowNoDrinksCongrats(true);
+    setNoDrinksAlreadyLogged(true);
     
-    // Mark the task as completed
-    await markDrinkTaskCompleted();
-    
-    // Add 25 coins reward
+    // Save no drinks status for today
     try {
-      await addCoins(25);
-      console.log('Added 25 coins for no drinks today');
+      await AsyncStorage.setItem('noDrinksToday', JSON.stringify({ date: today }));
     } catch (error) {
-      console.log('Error adding coins:', error);
+      console.log('Error saving no drinks status:', error);
+    }
+    
+    // Mark the task as completed with sober status
+    await markDrinkTaskCompleted(false);
+    
+    // Add 25 coins reward only if not already given today
+    if (shouldGiveCoins) {
+      try {
+        await addCoins(25);
+        await AsyncStorage.setItem('noDrinksCoinsReward', JSON.stringify({ date: today }));
+        console.log('Added 25 coins for no drinks today');
+      } catch (error) {
+        console.log('Error adding coins:', error);
+      }
     }
     
     // Auto-close congratulations after 3 seconds and go back
@@ -536,15 +612,23 @@ export default function DrinkLogger() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* No Drinks Today Button */}
         <TouchableOpacity 
-          style={styles.noDrinksTodayButton}
+          style={[
+            styles.noDrinksTodayButton,
+            noDrinksAlreadyLogged && styles.noDrinksTodayButtonDisabled
+          ]}
           onPress={handleNoDrinksToday}
+          disabled={noDrinksAlreadyLogged}
         >
           <View style={styles.noDrinksContent}>
             <View>
-              <Text style={styles.noDrinksTitle}>No Drinks Today</Text>
-              <Text style={styles.noDrinksSubtitle}>Tap here if you're staying sober today!</Text>
+              <Text style={styles.noDrinksTitle}>
+                {noDrinksAlreadyLogged ? 'Already Logged Today' : 'No Drinks Today'}
+              </Text>
+              <Text style={styles.noDrinksSubtitle}>
+                {noDrinksAlreadyLogged ? 'Great job staying sober!' : 'Tap here if you\'re staying sober today!'}
+              </Text>
             </View>
-            <Text style={styles.noDrinksEmoji}>🎉</Text>
+            <Text style={styles.noDrinksEmoji}>{noDrinksAlreadyLogged ? '✅' : '🎉'}</Text>
           </View>
         </TouchableOpacity>
 
@@ -1586,13 +1670,13 @@ const styles = StyleSheet.create({
   noDrinksEmoji: {
     fontSize: 32,
   },
+  noDrinksTodayButtonDisabled: {
+    backgroundColor: '#94a3b8',
+    opacity: 0.8,
+  },
   // Congratulations Modal Styles
   congratsOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',

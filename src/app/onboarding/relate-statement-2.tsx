@@ -37,6 +37,10 @@ export default function RelateStatement2() {
           <View style={[styles.progressDot, styles.progressDotActive]} />
           <View style={[styles.progressDot, styles.progressDotActive]} />
           <View style={[styles.progressDot, styles.progressDotActive]} />
+          <View style={[styles.progressDot, styles.progressDotActive]} />
+          <View style={[styles.progressDot, styles.progressDotActive]} />
+          <View style={[styles.progressDot, styles.progressDotActive]} />
+          <View style={styles.progressDot} />
         </View>
       </View>
 
@@ -118,7 +122,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   progressDot: {
-    width: 32,
+    width: 24,
     height: 6,
     borderRadius: 3,
     backgroundColor: '#d0d0d0',

@@ -86,10 +86,6 @@ export default function Toolkit() {
     console.log('Private coaching pressed - Calendly integration pending');
   };
 
-  const handleSeeAll = (section: string) => {
-    console.log(`See all ${section}`);
-    // Navigate to full list
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -98,9 +94,6 @@ export default function Toolkit() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Toolkit</Text>
-        <TouchableOpacity style={styles.helpButton}>
-          <Ionicons name="help-circle-outline" size={24} color="#666" />
-        </TouchableOpacity>
       </View>
 
       <ScrollView 
@@ -163,9 +156,6 @@ export default function Toolkit() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Cravings</Text>
-            <TouchableOpacity onPress={() => handleSeeAll('cravings')}>
-              <Text style={styles.seeAllText}>See all</Text>
-            </TouchableOpacity>
           </View>
           <Text style={styles.sectionDescription}>
             Document your cravings and be reminded of the reason you started your journey
@@ -194,9 +184,6 @@ export default function Toolkit() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Mindfulness</Text>
-            <TouchableOpacity onPress={() => handleSeeAll('mindfulness')}>
-              <Text style={styles.seeAllText}>See all</Text>
-            </TouchableOpacity>
           </View>
           <Text style={styles.sectionDescription}>
             Enhance your daily routine. Practice mindfulness, discover helpful breathing techniques, and more!
@@ -239,7 +226,7 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 50, // Increased top padding for status bar
@@ -249,9 +236,6 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
     color: '#1a1a1a',
-  },
-  helpButton: {
-    padding: 8,
   },
   content: {
     flex: 1,
@@ -360,11 +344,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
     color: '#1a1a1a',
-  },
-  seeAllText: {
-    fontSize: 14,
-    color: '#4169e1',
-    fontWeight: '500',
   },
   sectionDescription: {
     fontSize: 14,

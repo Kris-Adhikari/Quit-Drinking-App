@@ -19,6 +19,7 @@ import { useAlcoholTracking } from '@/hooks/use-alcohol-tracking';
 import { useAuth } from '@/hooks/use-auth';
 import { useCoins } from '@/hooks/use-coins';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getArticleForDay } from '@/data/alcohol-articles';
 
 const { width } = Dimensions.get('window');
 
@@ -39,7 +40,7 @@ interface DayData {
 export default function Daily() {
   const router = useRouter();
   const { user } = useAuth();
-  const { streakData, incrementStreak, todayTotal, todayLogs } = useAlcoholTracking();
+  const { streakData, incrementStreak, todayTotal, todayLogs, refreshData } = useAlcoholTracking();
   const { coins, addCoins, loadCoins } = useCoins();
   const [tasksExpanded, setTasksExpanded] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -51,9 +52,13 @@ export default function Daily() {
   const [dayCompleted, setDayCompleted] = useState<{[key: string]: boolean}>({});
   const [showCelebration, setShowCelebration] = useState(false);
   const [newStreakCount, setNewStreakCount] = useState(0);
-  const [activeTab, setActiveTab] = useState('calendar');
+  const [todayDrinkStatus, setTodayDrinkStatus] = useState<'logged' | 'sober' | null>(null);
+  const [storedDrinkCount, setStoredDrinkCount] = useState<number>(0);
 
   const CARD_WIDTH = 82; // Card width + gap
+
+  // Today is always index 0 (since we start from today)
+  const todayIndex = 0;
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -90,10 +95,136 @@ export default function Daily() {
   // Reload task states and coins when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      loadTaskStates();
-      loadCoins();
-    }, [loadTaskStates, loadCoins])
+      const loadData = async () => {
+        await loadTaskStates();
+        await loadCoins();
+        await refreshData(); // Refresh alcohol tracking data when screen gains focus
+        
+        // Check today's drink status and count
+        try {
+          const statusData = await AsyncStorage.getItem('todayDrinkStatus');
+          const countDate = await AsyncStorage.getItem('todayDrinkCountDate');
+          const today = new Date().toDateString();
+          
+          if (statusData) {
+            const { date, status } = JSON.parse(statusData);
+            if (date === today) {
+              setTodayDrinkStatus(status);
+            }
+          }
+          
+          if (countDate === today) {
+            const count = await AsyncStorage.getItem('todayDrinkCount');
+            setStoredDrinkCount(count ? parseFloat(count) : 0);
+          } else {
+            setStoredDrinkCount(0);
+          }
+        } catch (error) {
+          console.log('Error loading drink data:', error);
+        }
+      };
+      loadData();
+    }, [loadTaskStates, loadCoins, refreshData])
   );
+
+  // Generate tasks for different days
+  const getTasksForDay = (dayOffset: number): Task[] => {
+    const baseTasks = [
+      {
+        id: `task2_${dayOffset}`,
+        title: 'Daily Motivation',
+        duration: '1 min read',
+        icon: '💡',
+        completed: false,
+        route: '/daily-quote',
+      },
+      {
+        id: `task_drinks_${dayOffset}`,
+        title: 'Log Your Drinks',
+        duration: '2 min',
+        icon: '🍷',
+        completed: false,
+        route: '/drink-logger',
+      },
+    ];
+
+    // Add article task for first 20 days only
+    const dayIndex = Math.max(0, dayOffset); // Don't show articles for past days
+    const article = getArticleForDay(dayIndex);
+    
+    if (article && dayOffset >= 0) {
+      baseTasks.unshift({
+        id: `task1_${dayOffset}`,
+        title: article.title,
+        duration: article.duration,
+        icon: '📚',
+        completed: false,
+        route: `/articles/${article.id}`,
+      });
+    }
+
+    // Add different tasks for different days
+    if (dayOffset === -1) {
+      baseTasks.push({
+        id: `task3_${dayOffset}`,
+        title: 'Mindful Breathing Exercise',
+        duration: '5 min',
+        icon: '🧘',
+        completed: false,
+        route: '/content/breathing',
+      });
+    } else if (dayOffset === 1) {
+      baseTasks.push({
+        id: `task3_${dayOffset}`,
+        title: 'Reflection Journal',
+        duration: '10 min',
+        icon: '📝',
+        completed: false,
+        route: '/content/journal',
+      });
+    }
+
+    // Check if tasks are completed from state
+    return baseTasks.map(task => ({
+      ...task,
+      completed: taskStates[task.id] || false,
+    }));
+  };
+
+  // Check if all tasks for a specific day are completed
+  const checkDayCompletion = useCallback(async (dayOffset: number) => {
+    const todayTasks = getTasksForDay(dayOffset);
+    const allCompleted = todayTasks.every(task => taskStates[task.id]);
+    
+    if (allCompleted && dayOffset === 0) { // Only for today
+      const today = new Date().toDateString();
+      
+      // Check if we already completed today
+      if (!dayCompleted[today]) {
+        const newDayCompleted = {
+          ...dayCompleted,
+          [today]: true,
+        };
+        
+        setDayCompleted(newDayCompleted);
+        
+        try {
+          await AsyncStorage.setItem('completedDays', JSON.stringify(newDayCompleted));
+          // Increment streak
+          await incrementStreak();
+          
+          // Add reward coins
+          await addCoins(50);
+          
+          // Show celebration popup
+          setNewStreakCount(streakData.current_streak + 1);
+          setShowCelebration(true);
+        } catch (error) {
+          console.log('Error saving day completion:', error);
+        }
+      }
+    }
+  }, [taskStates, dayCompleted, incrementStreak, addCoins, streakData.current_streak]);
 
   // Check day completion when task states change
   useEffect(() => {
@@ -127,63 +258,6 @@ export default function Daily() {
     return currentTime.toLocaleDateString('en-US', options);
   };
 
-  // Generate tasks for different days
-  const getTasksForDay = (dayOffset: number): Task[] => {
-    const baseTasks = [
-      {
-        id: `task1_${dayOffset}`,
-        title: 'Changing Our Brains Through Neuroplasticity',
-        duration: '3 min read',
-        icon: '📚',
-        completed: false,
-        route: '/neuroplasticity-article',
-      },
-      {
-        id: `task2_${dayOffset}`,
-        title: 'Daily Motivation',
-        duration: '1 min read',
-        icon: '💡',
-        completed: false,
-        route: '/daily-quote',
-      },
-      {
-        id: `task_drinks_${dayOffset}`,
-        title: 'Log Your Drinks',
-        duration: '2 min',
-        icon: '🍷',
-        completed: false,
-        route: '/drink-logger',
-      },
-    ];
-
-    // Add different tasks for different days
-    if (dayOffset === -1) {
-      baseTasks.push({
-        id: `task3_${dayOffset}`,
-        title: 'Mindful Breathing Exercise',
-        duration: '5 min',
-        icon: '🧘',
-        completed: false,
-        route: '/content/breathing',
-      });
-    } else if (dayOffset === 1) {
-      baseTasks.push({
-        id: `task3_${dayOffset}`,
-        title: 'Reflection Journal',
-        duration: '10 min',
-        icon: '📝',
-        completed: false,
-        route: '/content/journal',
-      });
-    }
-
-    // Check if tasks are completed from state
-    return baseTasks.map(task => ({
-      ...task,
-      completed: taskStates[task.id] || false,
-    }));
-  };
-
   // Generate days array based on actual calendar days
   const generateDays = (): DayData[] => {
     const days: DayData[] = [];
@@ -202,8 +276,6 @@ export default function Daily() {
   };
 
   const days = generateDays();
-  // Today is always index 0 (since we start from today)
-  const todayIndex = 0;
   const currentDayTasks = days[todayIndex + selectedDay]?.tasks || [];
   const allTasksCompleted = currentDayTasks.every(task => task.completed);
 
@@ -248,41 +320,6 @@ export default function Daily() {
     }
   };
 
-  // Check if all tasks for a specific day are completed
-  const checkDayCompletion = useCallback(async (dayOffset: number) => {
-    const todayTasks = getTasksForDay(dayOffset);
-    const allCompleted = todayTasks.every(task => taskStates[task.id]);
-    
-    if (allCompleted && dayOffset === 0) { // Only for today
-      const today = new Date().toDateString();
-      
-      // Check if we already completed today
-      if (!dayCompleted[today]) {
-        const newDayCompleted = {
-          ...dayCompleted,
-          [today]: true,
-        };
-        
-        setDayCompleted(newDayCompleted);
-        
-        try {
-          await AsyncStorage.setItem('completedDays', JSON.stringify(newDayCompleted));
-          // Increment streak
-          await incrementStreak();
-          
-          // Add reward coins
-          await addCoins(50);
-          
-          // Show celebration popup
-          setNewStreakCount(streakData.current_streak + 1);
-          setShowCelebration(true);
-        } catch (error) {
-          console.log('Error saving day completion:', error);
-        }
-      }
-    }
-  }, [taskStates, dayCompleted, incrementStreak, addCoins]);
-
   const toggleTaskCompletion = async (taskId: string) => {
     const newState = {
       ...taskStates,
@@ -306,12 +343,6 @@ export default function Daily() {
       
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.headerIcon}>
-          <Ionicons name="menu" size={24} color="#666" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.headerIcon}>
-          <Ionicons name="bookmark-outline" size={24} color="#666" />
-        </TouchableOpacity>
         <View style={styles.coinsContainer}>
           <Text style={styles.coinsText}>🏅 {coins}</Text>
         </View>
@@ -456,17 +487,13 @@ export default function Daily() {
                   activeOpacity={isFutureDay ? 1 : 0.8}
                   disabled={isFutureDay}
                 >
-                  <TouchableOpacity 
-                    style={styles.taskCheckbox}
-                    onPress={() => !isFutureDay && toggleTaskCompletion(task.id)}
-                    disabled={isFutureDay}
-                  >
+                  <View style={styles.taskCheckbox}>
                     {task.completed ? (
                       <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
                     ) : (
                       <Ionicons name="ellipse-outline" size={24} color={isFutureDay ? "#ccc" : "#999"} />
                     )}
-                  </TouchableOpacity>
+                  </View>
                 <View style={styles.taskIcon}>
                   <Text style={styles.taskIconText}>{task.icon}</Text>
                 </View>
@@ -488,26 +515,6 @@ export default function Daily() {
           </View>
         )}
 
-        {/* Bonus Daily Research */}
-        <View style={styles.bonusSection}>
-          <Text style={styles.bonusTitle}>Bonus: Daily Research</Text>
-          
-          <TouchableOpacity style={styles.guideCard} activeOpacity={0.8}>
-            <View style={styles.guideContent}>
-              <Text style={styles.guideTitle}>The Ultimate Sober October Guide</Text>
-              <TouchableOpacity style={styles.exploreButton}>
-                <Text style={styles.exploreButtonText}>Explore</Text>
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity style={styles.closeButton}>
-              <Ionicons name="close" size={20} color="#fff" />
-            </TouchableOpacity>
-            <View style={styles.guideDecoration}>
-              <Text style={styles.leafEmoji}>🍂</Text>
-              <Text style={styles.leafEmoji2}>🍁</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
 
         {/* Drink Logging Section */}
         <View style={styles.drinkSection}>
@@ -516,31 +523,8 @@ export default function Daily() {
 
           {/* Drink Calendar */}
           <View style={styles.drinkCalendar}>
-            {/* Tab Navigation */}
-            <View style={styles.tabContainer}>
-              <TouchableOpacity 
-                style={[styles.tab, activeTab === 'calendar' && styles.activeTab]}
-                onPress={() => setActiveTab('calendar')}
-              >
-                <Text style={[styles.tabText, activeTab === 'calendar' && styles.activeTabText]}>Calendar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.tab, activeTab === 'chart' && styles.activeTab]}
-                onPress={() => setActiveTab('chart')}
-              >
-                <Text style={[styles.tabText, activeTab === 'chart' && styles.activeTabText]}>Chart</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.tab, activeTab === 'insights' && styles.activeTab]}
-                onPress={() => setActiveTab('insights')}
-              >
-                <Text style={[styles.tabText, activeTab === 'insights' && styles.activeTabText]}>Insights</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Calendar Tab */}
-            {activeTab === 'calendar' && (
-              <View>
+            {/* Calendar Content */}
+            <View>
                 <View style={styles.calendarHeader}>
                   <TouchableOpacity style={styles.monthNavButton}>
                     <Ionicons name="chevron-back" size={20} color="#666" />
@@ -580,16 +564,39 @@ export default function Daily() {
                 const getDrinkData = (day: number) => {
                   // Only show data for today if it exists
                   if (day === todayDate) {
-                    // Check if the drink task was completed today (which means they logged drinks or pressed "No Drinks")
-                    const drinkTaskCompleted = taskStates[`task_drinks_0`] || false;
-                    const hasData = drinkTaskCompleted;
-                    const isSober = drinkTaskCompleted && todayTotal === 0;
+                    // Always prioritize showing drinks if there are any
+                    if (todayTotal > 0) {
+                      return { 
+                        isSober: false,
+                        drinkCount: Math.round(todayTotal),
+                        hasData: true
+                      };
+                    }
                     
-                    return { 
-                      isSober: isSober,
-                      drinkCount: Math.round(todayTotal),
-                      hasData: hasData
-                    };
+                    // Check if task is completed and what type
+                    const taskCompleted = taskStates[`task_drinks_0`] || false;
+                    if (taskCompleted) {
+                      // Use the drink status to determine what to show
+                      if (todayDrinkStatus === 'logged') {
+                        // Drinks were logged - show the stored count
+                        const displayCount = Math.max(todayTotal, storedDrinkCount);
+                        return { 
+                          isSober: false,
+                          drinkCount: Math.round(displayCount),
+                          hasData: true
+                        };
+                      } else if (todayDrinkStatus === 'sober') {
+                        // "No Drinks Today" was pressed
+                        return { 
+                          isSober: true,
+                          drinkCount: 0,
+                          hasData: true
+                        };
+                      }
+                    }
+                    
+                    // No data for today yet
+                    return { isSober: false, drinkCount: 0, hasData: false };
                   }
                   // Future days and past days without data show as empty
                   return { isSober: false, drinkCount: 0, hasData: false };
@@ -645,12 +652,12 @@ export default function Daily() {
                             {currentDay}
                           </Text>
                           {isToday && drinkData.hasData && (
-                            drinkData.isSober ? (
-                              <Text style={styles.calendarEmojiSober}>✨</Text>
-                            ) : drinkData.drinkCount > 0 ? (
+                            drinkData.drinkCount > 0 ? (
                               <View style={styles.drinkCountBadge}>
                                 <Text style={styles.drinkCountText}>{drinkData.drinkCount}</Text>
                               </View>
+                            ) : drinkData.isSober ? (
+                              <Text style={styles.calendarEmojiSober}>✨</Text>
                             ) : null
                           )}
                         </TouchableOpacity>
@@ -674,80 +681,6 @@ export default function Daily() {
               })()}
             </View>
               </View>
-            )}
-
-            {/* Chart Tab */}
-            {activeTab === 'chart' && (
-              <View style={styles.chartContainer}>
-                <View style={styles.chartHeader}>
-                  <Text style={styles.chartTitle}>MAR 1 - MAR 31</Text>
-                  <Text style={styles.chartPeriod}>Weekly</Text>
-                </View>
-                
-                <View style={styles.statsContainer}>
-                  <Text style={styles.totalDrinks}>41 Drinks</Text>
-                  <View style={styles.statsRow}>
-                    <View style={styles.statItem}>
-                      <Ionicons name="trending-down" size={16} color="#10b981" />
-                      <Text style={styles.statText}>6 drinks less than last month</Text>
-                    </View>
-                    <View style={styles.statItem}>
-                      <Ionicons name="checkmark-circle" size={16} color="#10b981" />
-                      <Text style={styles.statText}>Under weekly target</Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Mock Chart */}
-                <View style={styles.chartArea}>
-                  <View style={styles.chartBars}>
-                    {[2, 4, 1, 3, 6, 2, 3].map((height, index) => (
-                      <View key={index} style={styles.chartBarContainer}>
-                        <View style={[styles.chartBar, { height: height * 10 + 20 }]} />
-                        <Text style={styles.chartLabel}>
-                          MAR {index === 0 ? '1' : index === 1 ? '8' : index === 2 ? '15' : index === 3 ? '22' : '29'}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              </View>
-            )}
-
-            {/* Insights Tab */}
-            {activeTab === 'insights' && (
-              <View style={styles.insightsContainer}>
-                <View style={styles.insightCard}>
-                  <View style={styles.insightHeader}>
-                    <Ionicons name="trending-up" size={24} color="#4169e1" />
-                    <Text style={styles.insightTitle}>Weekly Pattern</Text>
-                  </View>
-                  <Text style={styles.insightText}>
-                    You tend to drink more on weekends. Consider planning alcohol-free activities for Friday and Saturday nights.
-                  </Text>
-                </View>
-                
-                <View style={styles.insightCard}>
-                  <View style={styles.insightHeader}>
-                    <Ionicons name="time" size={24} color="#f59e0b" />
-                    <Text style={styles.insightTitle}>Peak Hours</Text>
-                  </View>
-                  <Text style={styles.insightText}>
-                    Most drinking occurs between 7-9 PM. Try having a non-alcoholic drink ready during this time.
-                  </Text>
-                </View>
-                
-                <View style={styles.insightCard}>
-                  <View style={styles.insightHeader}>
-                    <Ionicons name="trophy" size={24} color="#10b981" />
-                    <Text style={styles.insightTitle}>Progress</Text>
-                  </View>
-                  <Text style={styles.insightText}>
-                    Great job! You've reduced your weekly intake by 30% compared to last month. Keep it up!
-                  </Text>
-                </View>
-              </View>
-            )}
             
             <View style={styles.calendarFooter}>
               <TouchableOpacity 
@@ -836,14 +769,11 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 50, // Increased top padding for status bar
     paddingBottom: 10,
-  },
-  headerIcon: {
-    padding: 8,
   },
   coinsContainer: {
     backgroundColor: '#ffd700',
@@ -1051,75 +981,6 @@ const styles = StyleSheet.create({
   taskDurationDisabled: {
     color: '#ccc',
   },
-  bonusSection: {
-    marginTop: 10,
-  },
-  bonusTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#666',
-    marginBottom: 16,
-  },
-  guideCard: {
-    backgroundColor: '#ff6b35',
-    borderRadius: 20,
-    padding: 24,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  guideContent: {
-    zIndex: 2,
-  },
-  guideTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#ffffff',
-    marginBottom: 16,
-    maxWidth: '70%',
-  },
-  exploreButton: {
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    borderRadius: 20,
-    alignSelf: 'flex-start',
-  },
-  exploreButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#ff6b35',
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 3,
-  },
-  guideDecoration: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-  },
-  leafEmoji: {
-    fontSize: 48,
-    position: 'absolute',
-    right: 0,
-    bottom: 0,
-    transform: [{ rotate: '15deg' }],
-  },
-  leafEmoji2: {
-    fontSize: 36,
-    position: 'absolute',
-    right: 40,
-    bottom: 30,
-    transform: [{ rotate: '-20deg' }],
-  },
   // Drink Logging Styles
   drinkSection: {
     marginTop: 10,
@@ -1182,37 +1043,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 16,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  activeTab: {
-    backgroundColor: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#666',
-  },
-  activeTabText: {
-    color: '#4169e1',
-    fontWeight: '600',
   },
   calendarHeader: {
     flexDirection: 'row',
@@ -1317,100 +1147,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#ffffff',
-  },
-  // Chart Tab Styles
-  chartContainer: {
-    marginBottom: 16,
-  },
-  chartHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  chartTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-  },
-  chartPeriod: {
-    fontSize: 14,
-    color: '#4169e1',
-    fontWeight: '500',
-  },
-  statsContainer: {
-    marginBottom: 20,
-  },
-  totalDrinks: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1a1a1a',
-    marginBottom: 8,
-  },
-  statsRow: {
-    gap: 8,
-  },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 4,
-  },
-  statText: {
-    fontSize: 12,
-    color: '#666',
-  },
-  chartArea: {
-    height: 120,
-    marginBottom: 16,
-  },
-  chartBars: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    height: 80,
-    paddingHorizontal: 8,
-  },
-  chartBarContainer: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  chartBar: {
-    backgroundColor: '#4169e1',
-    width: 20,
-    borderRadius: 2,
-    marginBottom: 8,
-  },
-  chartLabel: {
-    fontSize: 10,
-    color: '#666',
-    textAlign: 'center',
-  },
-  // Insights Tab Styles
-  insightsContainer: {
-    gap: 12,
-    marginBottom: 16,
-  },
-  insightCard: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    padding: 16,
-  },
-  insightHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  insightTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
-  },
-  insightText: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
   },
   // Celebration Popup Styles
   celebrationOverlay: {

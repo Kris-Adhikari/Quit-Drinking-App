@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/hooks/use-auth';
-import { Post, Comment, Like } from '@/types/community';
+import { Post } from '@/types/community';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { communityPosts } from '@/data/community-posts';
 
 // List of common first names for anonymous users
 const anonymousNames = [
@@ -15,64 +14,26 @@ const getRandomAnonymousName = () => {
   return anonymousNames[Math.floor(Math.random() * anonymousNames.length)];
 };
 
-// Mock posts for development without Supabase
-const mockPosts: Post[] = [
-  {
-    id: '1',
-    user_id: 'mock-user-1',
-    content: `this am, caught the sunrise. Here's a poem about it if you care to read 🌅
-
-The Rising
-
-I watched the gray clouds turn fluorescent pink.
-This is what sober must feel like.
-There was a light coming from beneath the trees like a bulb starting to glow from its socket.
-My expectations caused the electricity to quickly drain.
-The clouds changed back to gray.
-Who was I to demand the earth put on such a colorful show?
-This, is what sober really feels like.
-A fog began to rise and roll over the water like a smoke screen I've become so oddly accustomed to.
-Eventually it dissipates.
-The gentle ripples turn smooth and still, creating a mirror of the sky above, as if nature implied...don't be afraid. Look at yourself.`,
-    created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    likes_count: 3,
-    comments_count: 0,
-    is_anonymous: true,
-    author_name: 'Anonymous',
-  },
-  {
-    id: '2',
-    user_id: 'mock-user-2',
-    content: `Day 15. The cravings hit different at night. But I'm learning that feelings are just visitors - they come, they go. Tonight I chose tea instead. Small victories.`,
-    created_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-    likes_count: 12,
-    comments_count: 3,
-    is_anonymous: false,
-    author_name: 'Sarah',
-  },
-  {
-    id: '3',
-    user_id: 'mock-user-3',
-    content: `Anyone else notice how much clearer mornings are now? Like someone cleaned the windows of my mind. 30 days tomorrow. Still taking it one day at a time.`,
-    created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    updated_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    likes_count: 24,
-    comments_count: 7,
-    is_anonymous: false,
-    author_name: 'Mike',
-  },
+// Fake supportive responses to make users feel heard
+const supportiveResponses = [
+  "Thank you for sharing this. You're not alone in this journey. 💙",
+  "Your honesty is inspiring. Keep taking it one day at a time! 🌟",
+  "I really felt this. Sending you strength and support. 🤗",
+  "This resonates so much. We're all here supporting each other. ❤️",
+  "Your courage to share helps others feel less alone. Thank you. 🙏",
+  "Every small step forward is a victory. You're doing great! 💪",
+  "I needed to read this today. Thank you for your vulnerability. 🌈",
+  "Your words remind me why this community is so special. Keep going! ✨",
+  "Feeling this deeply. You've got this, and we've got your back. 💫",
+  "Your strength shows through your words. Proud of you! 🌻"
 ];
 
+
 export const useCommunity = () => {
-  const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [userLikes, setUserLikes] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const isSupabaseConfigured = false; // Disabled for now - will enable when tables are created
 
   // Load posts
   const loadPosts = useCallback(async () => {
@@ -80,95 +41,79 @@ export const useCommunity = () => {
       setLoading(true);
       setError(null);
 
-      if (!isSupabaseConfigured) {
-        // Use mock data for development
-        const saved = await AsyncStorage.getItem('communityPosts');
-        if (saved) {
-          setPosts(JSON.parse(saved));
-        } else {
-          setPosts(mockPosts);
-          await AsyncStorage.setItem('communityPosts', JSON.stringify(mockPosts));
-        }
-        
-        // Load user likes
-        const savedLikes = await AsyncStorage.getItem('userLikes');
-        if (savedLikes) {
-          setUserLikes(new Set(JSON.parse(savedLikes)));
-        }
-        
-        setLoading(false);
-        return;
+      // Use local storage for all posts
+      const saved = await AsyncStorage.getItem('communityPosts');
+      if (saved) {
+        setPosts(JSON.parse(saved));
+      } else {
+        setPosts(communityPosts);
+        await AsyncStorage.setItem('communityPosts', JSON.stringify(communityPosts));
       }
-
-      // Real Supabase query
-      const { data: postsData, error: postsError } = await supabase
-        .from('posts')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (postsError) throw postsError;
-
+      
       // Load user likes
-      if (user) {
-        const { data: likesData, error: likesError } = await supabase
-          .from('likes')
-          .select('post_id')
-          .eq('user_id', user.id);
-
-        if (likesError) throw likesError;
-        
-        setUserLikes(new Set(likesData?.map(like => like.post_id) || []));
+      const savedLikes = await AsyncStorage.getItem('userLikes');
+      if (savedLikes) {
+        setUserLikes(new Set(JSON.parse(savedLikes)));
       }
-
-      setPosts(postsData || []);
+      
+      setLoading(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load posts');
       console.error('Error loading posts:', err);
     } finally {
       setLoading(false);
     }
-  }, [user, isSupabaseConfigured]);
+  }, []);
 
   // Create post
   const createPost = async (content: string, isAnonymous: boolean = false): Promise<boolean> => {
-    if (!user || !content.trim()) return false;
+    if (!content.trim()) return false;
 
     try {
-      const authorName = isAnonymous ? getRandomAnonymousName() : user.email?.split('@')[0] || 'User';
+      const authorName = getRandomAnonymousName();
       
-      if (!isSupabaseConfigured) {
-        // Mock post creation
-        const newPost: Post = {
-          id: Date.now().toString(),
-          user_id: user.id,
-          content: content.trim(),
+      // Always use local storage - no Supabase needed
+      const newPost: Post = {
+        id: Date.now().toString(),
+        user_id: 'local-user',
+        content: content.trim(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        likes_count: 0,
+        comments_count: 0,
+        is_anonymous: true,
+        author_name: authorName,
+      };
+
+      const updatedPosts = [newPost, ...posts];
+      setPosts(updatedPosts);
+      await AsyncStorage.setItem('communityPosts', JSON.stringify(updatedPosts));
+      
+      // Add a fake response after a delay to make it feel real
+      setTimeout(async () => {
+        const response = supportiveResponses[Math.floor(Math.random() * supportiveResponses.length)];
+        const responseAuthor = getRandomAnonymousName();
+        
+        const fakeResponse: Post = {
+          id: (Date.now() + Math.random() * 1000).toString(),
+          user_id: 'fake-user',
+          content: response,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          likes_count: 0,
+          likes_count: Math.floor(Math.random() * 5) + 1, // 1-5 likes
           comments_count: 0,
-          is_anonymous: isAnonymous,
-          author_name: authorName,
+          is_anonymous: true,
+          author_name: responseAuthor,
         };
 
-        const updatedPosts = [newPost, ...posts];
-        setPosts(updatedPosts);
-        await AsyncStorage.setItem('communityPosts', JSON.stringify(updatedPosts));
-        return true;
-      }
-
-      // Real Supabase insert
-      const { error } = await supabase
-        .from('posts')
-        .insert({
-          user_id: user.id,
-          content: content.trim(),
-          is_anonymous: isAnonymous,
-          author_name: authorName,
+        // Update both state and storage
+        setPosts(currentPosts => {
+          const updatedPosts = [fakeResponse, ...currentPosts];
+          AsyncStorage.setItem('communityPosts', JSON.stringify(updatedPosts));
+          return updatedPosts;
         });
-
-      if (error) throw error;
-
-      await loadPosts(); // Reload posts
+      }, Math.random() * 30000 + 10000); // 10-40 seconds delay
+      
       return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create post');
@@ -179,53 +124,30 @@ export const useCommunity = () => {
 
   // Toggle like
   const toggleLike = async (postId: string): Promise<boolean> => {
-    if (!user) return false;
 
     try {
       const isLiked = userLikes.has(postId);
 
-      if (!isSupabaseConfigured) {
-        // Mock like toggle
-        const updatedLikes = new Set(userLikes);
-        const updatedPosts = posts.map(post => {
-          if (post.id === postId) {
-            if (isLiked) {
-              updatedLikes.delete(postId);
-              return { ...post, likes_count: Math.max(0, post.likes_count - 1) };
-            } else {
-              updatedLikes.add(postId);
-              return { ...post, likes_count: post.likes_count + 1 };
-            }
+      // Local like toggle
+      const updatedLikes = new Set(userLikes);
+      const updatedPosts = posts.map(post => {
+        if (post.id === postId) {
+          if (isLiked) {
+            updatedLikes.delete(postId);
+            return { ...post, likes_count: Math.max(0, post.likes_count - 1) };
+          } else {
+            updatedLikes.add(postId);
+            return { ...post, likes_count: post.likes_count + 1 };
           }
-          return post;
-        });
+        }
+        return post;
+      });
 
-        setUserLikes(updatedLikes);
-        setPosts(updatedPosts);
-        
-        await AsyncStorage.setItem('userLikes', JSON.stringify([...updatedLikes]));
-        await AsyncStorage.setItem('communityPosts', JSON.stringify(updatedPosts));
-        return true;
-      }
-
-      // Real Supabase like toggle
-      if (isLiked) {
-        const { error } = await supabase
-          .from('likes')
-          .delete()
-          .eq('post_id', postId)
-          .eq('user_id', user.id);
-
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('likes')
-          .insert({ post_id: postId, user_id: user.id });
-
-        if (error) throw error;
-      }
-
-      await loadPosts(); // Reload posts
+      setUserLikes(updatedLikes);
+      setPosts(updatedPosts);
+      
+      await AsyncStorage.setItem('userLikes', JSON.stringify([...updatedLikes]));
+      await AsyncStorage.setItem('communityPosts', JSON.stringify(updatedPosts));
       return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to toggle like');

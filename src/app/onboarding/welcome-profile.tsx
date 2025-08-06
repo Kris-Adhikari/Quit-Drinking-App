@@ -32,6 +32,15 @@ export default function WelcomeProfile() {
         <TouchableOpacity onPress={handleBack} style={styles.backButton} activeOpacity={0.7}>
           <Ionicons name="chevron-back" size={24} color="#1a1a1a" />
         </TouchableOpacity>
+        <Text style={styles.headerTitle}>Profile</Text>
+        <View style={styles.progressContainer}>
+          <View style={[styles.progressDot, styles.progressDotActive]} />
+          <View style={[styles.progressDot, styles.progressDotActive]} />
+          <View style={[styles.progressDot, styles.progressDotActive]} />
+          <View style={[styles.progressDot, styles.progressDotActive]} />
+          <View style={[styles.progressDot, styles.progressDotActive]} />
+          <View style={styles.progressDot} />
+        </View>
       </View>
 
       <View style={styles.content}>
@@ -72,14 +81,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 20,
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1a3a7b',
+    marginTop: 20,
+    marginBottom: 15,
+  },
+  progressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  progressDot: {
+    width: 26,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#d0d0d0',
+  },
+  progressDotActive: {
+    backgroundColor: '#1a3a7b',
   },
   backButton: {
+    position: 'absolute',
+    left: 20,
+    top: 40,
     width: 40,
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: -10,
-    marginTop: 20,
   },
   content: {
     flex: 1,

@@ -16,8 +16,13 @@ export default function OnboardingLayout() {
       <Stack.Screen name="relationship-alcohol" />
       <Stack.Screen name="previous-attempts" />
       <Stack.Screen name="regret" />
-      <Stack.Screen name="challenges-preview" />
       <Stack.Screen name="typical-week" />
+      <Stack.Screen name="types-of-alcohol" />
+      <Stack.Screen name="reasons-for-drinking" />
+      <Stack.Screen name="interference-frequency" />
+      <Stack.Screen name="relate-statement" />
+      <Stack.Screen name="relate-statement-2" />
+      <Stack.Screen name="relate-statement-3" />
       <Stack.Screen name="drinking-habits" />
       <Stack.Screen name="triggers" />
       <Stack.Screen name="goals" />
