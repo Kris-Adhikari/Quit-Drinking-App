@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAlcoholTracking } from '@/hooks/use-alcohol-tracking';
 import { useAuth } from '@/hooks/use-auth';
 import { useCoins } from '@/hooks/use-coins';
+import { useUserProfile } from '@/hooks/use-user-profile';
 
 // Coin-based badges
 const coinBadges = [
@@ -70,6 +71,7 @@ const coinBadges = [
 export default function Profile() {
   const router = useRouter();
   const { user } = useAuth();
+  const { profile } = useUserProfile();
   const { streakData } = useAlcoholTracking();
   const { coins, spendCoins, ownedBadges, purchaseBadge, loadCoins, loadOwnedBadges } = useCoins();
 
@@ -168,7 +170,7 @@ export default function Profile() {
               </Text>
             </View>
           </View>
-          <Text style={styles.userName}>{user?.email?.split('@')[0] || 'User'}</Text>
+          <Text style={styles.userName}>{profile?.name || user?.email?.split('@')[0] || 'User'}</Text>
           <Text style={styles.userEmail}>{user?.email || 'user@example.com'}</Text>
         </View>
 

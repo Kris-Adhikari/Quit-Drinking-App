@@ -18,6 +18,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { useAlcoholTracking } from '@/hooks/use-alcohol-tracking';
 import { useAuth } from '@/hooks/use-auth';
 import { useCoins } from '@/hooks/use-coins';
+import { useUserProfile } from '@/hooks/use-user-profile';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getArticleForDay } from '@/data/alcohol-articles';
 
@@ -40,6 +41,7 @@ interface DayData {
 export default function Daily() {
   const router = useRouter();
   const { user } = useAuth();
+  const { profile } = useUserProfile();
   const { streakData, incrementStreak, todayTotal, todayLogs, refreshData } = useAlcoholTracking();
   const { coins, addCoins, loadCoins } = useCoins();
   const [tasksExpanded, setTasksExpanded] = useState(true);
@@ -245,8 +247,8 @@ export default function Daily() {
     return 'Good Evening';
   };
 
-  // Get user's first name
-  const firstName = user?.email?.split('@')[0] || 'User';
+  // Get user's first name from profile or email
+  const firstName = profile?.name || user?.email?.split('@')[0] || 'User';
 
   // Format date
   const formatDate = () => {

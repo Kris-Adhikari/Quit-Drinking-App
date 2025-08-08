@@ -12,13 +12,17 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useUserProfile } from '@/hooks/use-user-profile';
 
 export default function Name() {
   const router = useRouter();
   const [name, setName] = useState('');
+  const { saveProfile } = useUserProfile();
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (name.trim()) {
+      // Save name to Supabase/local storage
+      await saveProfile({ name: name.trim() });
       router.push('/onboarding/gender');
     }
   };

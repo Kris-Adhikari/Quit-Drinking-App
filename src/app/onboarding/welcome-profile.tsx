@@ -9,9 +9,11 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useUserProfile } from '@/hooks/use-user-profile';
 
 export default function WelcomeProfile() {
   const router = useRouter();
+  const { profile } = useUserProfile();
 
   const handleContinue = () => {
     router.push('/onboarding/relationship');
@@ -21,8 +23,8 @@ export default function WelcomeProfile() {
     router.back();
   };
 
-  // In a real app, you'd get the user's name from context/state
-  const userName = "there"; // Default fallback
+  // Get the user's name from profile or use fallback
+  const userName = profile?.name || "there";
 
   return (
     <SafeAreaView style={styles.container}>
