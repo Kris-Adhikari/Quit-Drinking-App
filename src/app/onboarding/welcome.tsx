@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   StatusBar,
   Dimensions,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,7 +27,13 @@ export default function Welcome() {
       
       <View style={styles.content}>
         <View style={styles.topSection}>
-          <Text style={styles.welcomeText}>Welcome!</Text>
+          <Image 
+            source={require('../../../assets/images/app.png')} 
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          
+          <Text style={styles.welcomeText}>Welcome to Sober Up</Text>
           
           <Text style={styles.subtitleText}>
             Let's start by finding out if{'\n'}
@@ -47,14 +54,14 @@ export default function Welcome() {
           </View>
         </View>
 
-        <View style={styles.bottomSection}>
+        <View style={styles.bottomContainer}>
           <TouchableOpacity 
             style={styles.startButton} 
             onPress={handleStartQuiz}
             activeOpacity={0.8}
           >
             <Text style={styles.startButtonText}>Start Quiz</Text>
-            <Ionicons name="chevron-forward" size={20} color="#1a1a1a" />
+            <Ionicons name="chevron-forward" size={20} color="#ffffff" />
           </TouchableOpacity>
 
           
@@ -83,6 +90,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: -50,
   },
+  logo: {
+    width: 250,
+    height: 250,
+    marginBottom: 20,
+  },
   welcomeText: {
     fontSize: 36,
     fontWeight: '700',
@@ -104,25 +116,25 @@ const styles = StyleSheet.create({
   star: {
     marginHorizontal: 2,
   },
-  bottomSection: {
+  bottomContainer: {
     paddingBottom: 40,
     alignItems: 'center',
   },
   startButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#4169e1',
     paddingVertical: 16,
     paddingHorizontal: 30,
     borderRadius: 30,
-    marginBottom: 40,
+    marginBottom: 20,
     minWidth: 200,
     justifyContent: 'center',
   },
   startButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1a1a1a',
+    color: '#ffffff',
     marginRight: 8,
   },
   indicator: {

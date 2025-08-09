@@ -16,6 +16,9 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/use-auth';
 import { useSettings } from '@/hooks/use-settings';
+import { useUserProfile } from '@/hooks/use-user-profile';
+import { useAppTracking } from '@/hooks/use-app-tracking';
+import { usePurchases } from '@/hooks/use-purchases';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface SettingsItem {
@@ -32,7 +35,10 @@ interface SettingsItem {
 export default function Settings() {
   const router = useRouter();
   const { user, signOut } = useAuth();
-  const { settings, updateSetting, getFormattedReminderTime, getDrinkUnitLabel } = useSettings();
+  const { settings, updateSetting, getFormattedReminderTime, getDrinkUnitLabel, exportSettings } = useSettings();
+  const { deleteAccount } = useUserProfile();
+  const { trackingStatus, requestTrackingPermission, getStatusText, isTrackingEnabled } = useAppTracking();
+  const { restorePurchases, openSubscriptionManagement, loading: purchasesLoading } = usePurchases();
   const [showNameModal, setShowNameModal] = useState(false);
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [showPriceModal, setShowPriceModal] = useState(false);
@@ -78,22 +84,42 @@ export default function Settings() {
         { 
           text: 'Delete', 
           style: 'destructive', 
-          onPress: () => {
-            // In a real app, this would call an API to delete the account
-            Alert.alert('Account deleted', 'Your account has been deleted.');
+          onPress: async () => {
+            try {
+              const result = await deleteAccount();
+              if (result.success) {
+                Alert.alert('Account Deleted', 'Your account and all data have been permanently deleted.', [
+                  { text: 'OK', onPress: () => signOut() }
+                ]);
+              } else {
+                Alert.alert('Error', result.error || 'Failed to delete account');
+              }
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete account');
+            }
           }
         },
       ]
     );
   };
 
-  const handleExportData = () => {
+  const handleExportData = async () => {
     Alert.alert(
       'Export Data',
       'Your progress data will be prepared for download. You\'ll receive an email with your data within 24 hours.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Request Export', onPress: () => console.log('Export requested') },
+        { 
+          text: 'Request Export', 
+          onPress: async () => {
+            try {
+              await exportSettings();
+              Alert.alert('Export Requested', 'You will receive an email with your data within 24 hours.');
+            } catch (error) {
+              Alert.alert('Export Failed', 'Unable to export data. Please try again later.');
+            }
+          }
+        },
       ]
     );
   };
@@ -117,20 +143,20 @@ export default function Settings() {
           onPress: () => setShowNameModal(true),
         },
         {
-          id: 'email',
-          title: 'Email',
-          subtitle: user?.email || 'Not signed in',
-          icon: 'mail-outline',
-          type: 'action' as const,
-          onPress: () => Alert.alert('Email', 'Email editing coming soon'),
-        },
-        {
           id: 'subscription',
           title: 'Subscription',
           subtitle: 'Manage your premium subscription',
           icon: 'card-outline',
           type: 'navigation' as const,
-          onPress: () => Alert.alert('Subscription', 'Subscription management coming soon'),
+          onPress: () => openSubscriptionManagement(),
+        },
+        {
+          id: 'restore_purchases',
+          title: 'Restore Purchases',
+          subtitle: purchasesLoading ? 'Restoring...' : 'Restore previous subscription purchases',
+          icon: 'refresh-outline',
+          type: 'action' as const,
+          onPress: () => !purchasesLoading && restorePurchases(),
         },
       ],
     },
@@ -141,7 +167,7 @@ export default function Settings() {
           id: 'daily_goal',
           title: 'Daily Drink Goal',
           subtitle: settings.dailyGoal === 0 ? 'No drinking goal' : `Max ${settings.dailyGoal} ${getDrinkUnitLabel()} per day`,
-          icon: 'target-outline',
+          icon: 'flag-outline',
           type: 'action' as const,
           onPress: () => {
             setNewDailyGoal(settings.dailyGoal.toString());
@@ -167,52 +193,6 @@ export default function Settings() {
             );
           },
         },
-        {
-          id: 'reminder_time',
-          title: 'Daily Check-in Time',
-          subtitle: `Remind me at ${getFormattedReminderTime()}`,
-          icon: 'alarm-outline',
-          type: 'action' as const,
-          onPress: () => Alert.alert('Reminder Time', 'Time picker coming soon'),
-        },
-        {
-          id: 'price_per_drink',
-          title: 'Average Drink Price',
-          subtitle: `$${settings.pricePerDrink.toFixed(2)} per drink`,
-          icon: 'cash-outline',
-          type: 'action' as const,
-          onPress: () => {
-            setNewPrice(settings.pricePerDrink.toString());
-            setShowPriceModal(true);
-          },
-        },
-        {
-          id: 'show_money_spent',
-          title: 'Show Money Saved',
-          subtitle: 'Display money saved calculations',
-          icon: 'wallet-outline',
-          type: 'toggle' as const,
-          value: settings.showMoneySpent,
-          onToggle: (value) => updateSetting('showMoneySpent', value),
-        },
-        {
-          id: 'week_start',
-          title: 'Week Starts On',
-          subtitle: settings.weekStart === 'monday' ? 'Monday' : 'Sunday',
-          icon: 'calendar-outline',
-          type: 'action' as const,
-          onPress: () => {
-            Alert.alert(
-              'Week Start',
-              'Choose when your week starts for progress calculations',
-              [
-                { text: 'Monday', onPress: () => updateSetting('weekStart', 'monday') },
-                { text: 'Sunday', onPress: () => updateSetting('weekStart', 'sunday') },
-                { text: 'Cancel', style: 'cancel' },
-              ]
-            );
-          },
-        },
       ],
     },
     {
@@ -225,7 +205,7 @@ export default function Settings() {
           icon: 'notifications-outline',
           type: 'toggle' as const,
           value: settings.pushNotifications,
-          onToggle: (value) => updateSetting('pushNotifications', value),
+          onToggle: (value: boolean) => updateSetting('pushNotifications', value),
         },
         {
           id: 'daily_reminders',
@@ -234,34 +214,7 @@ export default function Settings() {
           icon: 'time-outline',
           type: 'toggle' as const,
           value: settings.dailyReminders,
-          onToggle: (value) => updateSetting('dailyReminders', value),
-        },
-        {
-          id: 'achievement_notifications',
-          title: 'Achievement Alerts',
-          subtitle: 'Celebrate milestones and streaks',
-          icon: 'trophy-outline',
-          type: 'toggle' as const,
-          value: settings.achievementNotifications,
-          onToggle: (value) => updateSetting('achievementNotifications', value),
-        },
-        {
-          id: 'progress_reports',
-          title: 'Weekly Progress',
-          subtitle: 'Get weekly progress summaries',
-          icon: 'stats-chart-outline',
-          type: 'toggle' as const,
-          value: settings.progressReports,
-          onToggle: (value) => updateSetting('progressReports', value),
-        },
-        {
-          id: 'community_updates',
-          title: 'Community Updates',
-          subtitle: 'Notifications from community posts',
-          icon: 'people-outline',
-          type: 'toggle' as const,
-          value: settings.communityUpdates,
-          onToggle: (value) => updateSetting('communityUpdates', value),
+          onToggle: (value: boolean) => updateSetting('dailyReminders', value),
         },
       ],
     },
@@ -271,11 +224,28 @@ export default function Settings() {
         {
           id: 'data_collection',
           title: 'Analytics',
-          subtitle: 'Help improve the app with usage data',
+          subtitle: `App tracking: ${getStatusText(trackingStatus)}`,
           icon: 'analytics-outline',
           type: 'toggle' as const,
-          value: settings.dataCollection,
-          onToggle: (value) => updateSetting('dataCollection', value),
+          value: isTrackingEnabled,
+          onToggle: async (value: boolean) => {
+            if (value) {
+              const result = await requestTrackingPermission();
+              if (result !== 'granted') {
+                Alert.alert(
+                  'Tracking Permission',
+                  'Please enable tracking in your device settings to help us improve the app.',
+                  [{ text: 'OK' }]
+                );
+              }
+            } else {
+              Alert.alert(
+                'Tracking Settings',
+                'To disable tracking, please go to your device settings > Privacy & Security > Tracking.',
+                [{ text: 'OK' }]
+              );
+            }
+          },
         },
         {
           id: 'crash_reporting',
@@ -284,7 +254,7 @@ export default function Settings() {
           icon: 'bug-outline',
           type: 'toggle' as const,
           value: settings.crashReporting,
-          onToggle: (value) => updateSetting('crashReporting', value),
+          onToggle: (value: boolean) => updateSetting('crashReporting', value),
         },
         {
           id: 'export_data',
@@ -297,46 +267,21 @@ export default function Settings() {
       ],
     },
     {
-      title: 'App',
+      title: 'Legal',
       items: [
-        {
-          id: 'dark_mode',
-          title: 'Dark Mode',
-          subtitle: 'Use dark theme (coming soon)',
-          icon: 'moon-outline',
-          type: 'toggle' as const,
-          value: settings.darkMode,
-          onToggle: (value) => updateSetting('darkMode', value),
-        },
         {
           id: 'privacy_policy',
           title: 'Privacy Policy',
           icon: 'shield-outline',
           type: 'navigation' as const,
-          onPress: () => Alert.alert('Privacy Policy', 'Privacy policy will open in browser'),
+          onPress: () => router.push('/privacy-policy'),
         },
         {
           id: 'terms',
           title: 'Terms of Service',
           icon: 'document-text-outline',
           type: 'navigation' as const,
-          onPress: () => Alert.alert('Terms', 'Terms will open in browser'),
-        },
-        {
-          id: 'contact',
-          title: 'Contact Support',
-          subtitle: 'Get help with the app',
-          icon: 'help-circle-outline',
-          type: 'navigation' as const,
-          onPress: () => Alert.alert('Support', 'Support contact coming soon'),
-        },
-        {
-          id: 'version',
-          title: 'Version',
-          subtitle: '1.0.0',
-          icon: 'information-circle-outline',
-          type: 'action' as const,
-          onPress: () => {},
+          onPress: () => router.push('/terms-of-service'),
         },
       ],
     },

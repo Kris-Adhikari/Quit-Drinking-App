@@ -50,13 +50,15 @@ export default function PersonalizationIntro() {
             </Text>
           </View>
 
-          <TouchableOpacity 
-            style={styles.startButton}
-            onPress={handleStartPlan}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.startButtonText}>Start My Custom Plan</Text>
-          </TouchableOpacity>
+          <View style={styles.bottomContainer}>
+            <TouchableOpacity 
+              style={styles.startButton}
+              onPress={handleStartPlan}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.startButtonText}>Start My Custom Plan</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </SafeAreaView>
     </LinearGradient>
@@ -81,7 +83,9 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'space-between',
     paddingHorizontal: 30,
-    paddingBottom: 50,
+  },
+  bottomContainer: {
+    paddingBottom: 40,
   },
   centerContent: {
     flex: 1,

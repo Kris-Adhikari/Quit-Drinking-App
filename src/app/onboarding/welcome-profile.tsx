@@ -48,7 +48,7 @@ export default function WelcomeProfile() {
       <View style={styles.content}>
         <View style={styles.centerContent}>
           <Text style={styles.title}>
-            Welcome to{'\n'}Deriv, {userName}!
+            Welcome to{'\n'}Sober Up, {userName}!
           </Text>
           
           <Text style={styles.subtitle}>
@@ -60,15 +60,17 @@ export default function WelcomeProfile() {
           </Text>
         </View>
 
-        <TouchableOpacity
-          style={styles.continueButton}
-          onPress={handleContinue}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.continueButtonText}>
-            Let's dive in!
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.bottomContainer}>
+          <TouchableOpacity
+            style={styles.continueButton}
+            onPress={handleContinue}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.continueButtonText}>
+              Let's dive in!
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -120,7 +122,9 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 30,
     justifyContent: 'space-between',
-    paddingBottom: 50,
+  },
+  bottomContainer: {
+    paddingBottom: 40,
   },
   centerContent: {
     flex: 1,

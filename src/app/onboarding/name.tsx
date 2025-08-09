@@ -35,25 +35,25 @@ export default function Name() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f0f4ff" />
       
+      <View style={styles.header}>
+        <TouchableOpacity onPress={handleBack} style={styles.backButton} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={24} color="#1a1a1a" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Profile</Text>
+        <View style={styles.progressContainer}>
+          <View style={[styles.progressDot, styles.progressDotActive]} />
+          <View style={[styles.progressDot, styles.progressDotActive]} />
+          <View style={styles.progressDot} />
+          <View style={styles.progressDot} />
+          <View style={styles.progressDot} />
+          <View style={styles.progressDot} />
+        </View>
+      </View>
+
       <KeyboardAvoidingView 
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={styles.header}>
-          <TouchableOpacity onPress={handleBack} style={styles.backButton} activeOpacity={0.7}>
-            <Ionicons name="chevron-back" size={24} color="#1a1a1a" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Profile</Text>
-          <View style={styles.progressContainer}>
-            <View style={[styles.progressDot, styles.progressDotActive]} />
-            <View style={[styles.progressDot, styles.progressDotActive]} />
-            <View style={styles.progressDot} />
-            <View style={styles.progressDot} />
-            <View style={styles.progressDot} />
-            <View style={styles.progressDot} />
-          </View>
-        </View>
-
         <View style={styles.content}>
           <Text style={styles.title}>What should we call you?</Text>
           <Text style={styles.subtitle}>
@@ -71,27 +71,27 @@ export default function Name() {
             returnKeyType="done"
             onSubmitEditing={handleContinue}
           />
-
-          <View style={styles.bottomContainer}>
-            <TouchableOpacity
-              style={[
-                styles.continueButton,
-                !name.trim() && styles.continueButtonDisabled,
-              ]}
-              onPress={handleContinue}
-              disabled={!name.trim()}
-              activeOpacity={0.8}
-            >
-              <Text style={[
-                styles.continueButtonText,
-                !name.trim() && styles.continueButtonTextDisabled,
-              ]}>
-                Continue
-              </Text>
-            </TouchableOpacity>
-          </View>
         </View>
       </KeyboardAvoidingView>
+
+      <View style={styles.bottomContainer}>
+        <TouchableOpacity
+          style={[
+            styles.continueButton,
+            !name.trim() && styles.continueButtonDisabled,
+          ]}
+          onPress={handleContinue}
+          disabled={!name.trim()}
+          activeOpacity={0.8}
+        >
+          <Text style={[
+            styles.continueButtonText,
+            !name.trim() && styles.continueButtonTextDisabled,
+          ]}>
+            Continue
+          </Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
@@ -170,8 +170,8 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
   },
   bottomContainer: {
-    marginTop: 'auto',
-    paddingBottom: 30,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
   },
   continueButton: {
     backgroundColor: '#1a1a1a',

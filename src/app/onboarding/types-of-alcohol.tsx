@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
+  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -59,7 +60,7 @@ export default function TypesOfAlcohol() {
         </View>
       </View>
 
-      <View style={styles.content}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>What types of alcohol do you normally drink?</Text>
         <Text style={styles.subtitle}>This will help us personalize your plan.{'\n'}(Select all that apply)</Text>
 
@@ -83,25 +84,25 @@ export default function TypesOfAlcohol() {
             </TouchableOpacity>
           ))}
         </View>
+      </ScrollView>
 
-        <View style={styles.bottomContainer}>
-          <TouchableOpacity
-            style={[
-              styles.continueButton,
-              selectedTypes.length === 0 && styles.continueButtonDisabled
-            ]}
-            onPress={handleContinue}
-            activeOpacity={0.8}
-            disabled={selectedTypes.length === 0}
-          >
-            <Text style={[
-              styles.continueButtonText,
-              selectedTypes.length === 0 && styles.continueButtonTextDisabled
-            ]}>
-              Next
-            </Text>
-          </TouchableOpacity>
-        </View>
+      <View style={styles.bottomContainer}>
+        <TouchableOpacity
+          style={[
+            styles.continueButton,
+            selectedTypes.length === 0 && styles.continueButtonDisabled
+          ]}
+          onPress={handleContinue}
+          activeOpacity={0.8}
+          disabled={selectedTypes.length === 0}
+        >
+          <Text style={[
+            styles.continueButtonText,
+            selectedTypes.length === 0 && styles.continueButtonTextDisabled
+          ]}>
+            Next
+          </Text>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -200,8 +201,10 @@ const styles = StyleSheet.create({
     color: '#1a3a7b',
   },
   bottomContainer: {
-    marginTop: 'auto',
-    paddingBottom: 30,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+    paddingTop: 20,
+    backgroundColor: '#f0f4ff',
   },
   continueButton: {
     backgroundColor: '#1a3a7b',

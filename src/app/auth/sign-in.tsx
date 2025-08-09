@@ -9,10 +9,13 @@ import {
   Alert,
   ActivityIndicator,
   Dimensions,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/use-auth';
+import { useUserProfile } from '@/hooks/use-user-profile';
+import { supabase } from '@/lib/supabase';
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,19 +27,29 @@ const { width } = Dimensions.get('window');
 export default function SignIn() {
   const router = useRouter();
   const { signInWithOAuth, session } = useAuth();
+  const { profile } = useUserProfile();
   const [loading, setLoading] = useState(false);
 
-  // Navigate to onboarding when session is established
+  // Redirect to home if already signed in (let root index.tsx handle routing)
   useEffect(() => {
     if (session) {
-      router.replace('/onboarding/welcome');
+      router.replace('/');
     }
   }, [session]);
 
   const handleOAuthSignIn = async (provider: 'google') => {
     try {
       setLoading(true);
-      const { data, error } = await signInWithOAuth(provider);
+      
+      // Get the redirect URI first
+      // Use stoppr:// scheme to match Supabase config
+      const redirectUri = makeRedirectUri({
+        scheme: 'stoppr',
+      });
+      console.log('Redirect URI:', redirectUri);
+      
+      // Pass redirect URI to the auth hook
+      const { data, error } = await signInWithOAuth(provider, redirectUri);
       
       if (error) {
         Alert.alert('Sign In Failed', error.message);
@@ -44,19 +57,48 @@ export default function SignIn() {
       }
 
       if (data?.url) {
-        // Open the OAuth URL in a web browser
+        console.log('OAuth URL:', data.url);
+        
         const result = await WebBrowser.openAuthSessionAsync(
           data.url,
-          makeRedirectUri({
-            scheme: 'stoppr',
-            path: 'auth/callback',
-          })
+          redirectUri
         );
 
+        console.log('OAuth result:', result);
+        
         if (result.type === 'success') {
-          // The auth hook will detect the new session automatically
-          console.log('OAuth success');
+          // Parse the URL to get the auth tokens
+          const url = result.url;
+          console.log('Success URL:', url);
+          
+          // Extract access_token and refresh_token from URL
+          const urlParams = new URLSearchParams(url.split('#')[1] || url.split('?')[1]);
+          const accessToken = urlParams.get('access_token');
+          const refreshToken = urlParams.get('refresh_token');
+          
+          if (accessToken) {
+            // Set the session manually
+            const { error: sessionError } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || '',
+            });
+            
+            if (sessionError) {
+              console.error('Session error:', sessionError);
+              Alert.alert('Authentication Error', 'Failed to establish session');
+            } else {
+              console.log('Session established successfully');
+            }
+          } else {
+            Alert.alert('Authentication Error', 'No access token received');
+          }
+        } else if (result.type === 'cancel') {
+          console.log('OAuth cancelled by user');
+        } else if (result.type === 'dismiss') {
+          console.log('OAuth dismissed by user');
         }
+      } else {
+        Alert.alert('Authentication Error', 'No OAuth URL received');
       }
     } catch (error) {
       Alert.alert('Error', 'An unexpected error occurred');
@@ -100,12 +142,16 @@ export default function SignIn() {
       <View style={styles.content}>
         {/* Logo/Brand Section */}
         <View style={styles.brandSection}>
-          <Text style={styles.brandName}>deriv</Text>
+          <Image 
+            source={require('../../../assets/images/app.png')} 
+            style={styles.logo}
+            resizeMode="contain"
+          />
         </View>
 
         {/* Main Content */}
         <View style={styles.mainSection}>
-          <Text style={styles.title}>Get the most from deriv</Text>
+          <Text style={styles.title}>Get the most from Sober Up</Text>
           <Text style={styles.subtitle}>
             Sign up to backup your progress,{'\n'}
             sync with other devices, and more.
@@ -176,21 +222,22 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    justifyContent: 'space-between',
     paddingHorizontal: 24,
   },
   brandSection: {
-    paddingTop: 80,
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 60,
+    marginTop: -50,
   },
-  brandName: {
-    fontSize: 36,
-    fontWeight: '700',
-    color: '#1a1a1a',
-    letterSpacing: -1,
+  logo: {
+    width: 250,
+    height: 250,
   },
   mainSection: {
     alignItems: 'center',
+    paddingBottom: 40,
   },
   title: {
     fontSize: 24,

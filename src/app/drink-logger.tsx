@@ -17,6 +17,7 @@ import { useAlcoholTracking } from '@/hooks/use-alcohol-tracking';
 import { CustomDrink } from '@/types/alcohol-log';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCoins } from '@/hooks/use-coins';
+import { useUserProfile } from '@/hooks/use-user-profile';
 
 interface QuickDrink {
   id: string;
@@ -40,6 +41,7 @@ export default function DrinkLogger() {
   const router = useRouter();
   const { addAlcoholLog, loading } = useAlcoholTracking();
   const { addCoins } = useCoins();
+  const { reloadProfile } = useUserProfile();
   const [activeTab, setActiveTab] = useState<'quick' | 'saved' | 'new'>('quick');
   const [savedDrinks, setSavedDrinks] = useState<CustomDrink[]>([]);
   const [showAddDrinkModal, setShowAddDrinkModal] = useState(false);
@@ -561,6 +563,7 @@ export default function DrinkLogger() {
     if (shouldGiveCoins) {
       try {
         await addCoins(25);
+        await reloadProfile(); // Reload to show updated coins
         await AsyncStorage.setItem('noDrinksCoinsReward', JSON.stringify({ date: today }));
         console.log('Added 25 coins for no drinks today');
       } catch (error) {

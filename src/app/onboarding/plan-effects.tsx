@@ -10,11 +10,17 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useUserProfile } from '@/hooks/use-user-profile';
 
 export default function PlanEffects() {
   const router = useRouter();
+  const { completeOnboarding } = useUserProfile();
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
+    // Mark onboarding as completed in Supabase
+    await completeOnboarding();
+    
+    // Navigate to main app
     router.push('/(tabs)/daily');
   };
 

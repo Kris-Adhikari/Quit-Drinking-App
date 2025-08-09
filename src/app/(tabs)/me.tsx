@@ -21,48 +21,48 @@ const coinBadges = [
   {
     id: 'bronze',
     name: 'Bronze Badge',
-    description: 'Purchase with 2000 coins',
-    cost: 2000,
+    description: 'Purchase with 1000 coins',
+    cost: 1000,
     badgeColor: '#CD7F32',
     emoji: '🥉',
   },
   {
     id: 'silver',
     name: 'Silver Badge', 
-    description: 'Purchase with 5000 coins',
-    cost: 5000,
+    description: 'Purchase with 2500 coins',
+    cost: 2500,
     badgeColor: '#C0C0C0',
     emoji: '🥈',
   },
   {
     id: 'gold',
     name: 'Gold Badge',
-    description: 'Purchase with 10000 coins',
-    cost: 10000,
+    description: 'Purchase with 5000 coins',
+    cost: 5000,
     badgeColor: '#FFD700',
     emoji: '🥇',
   },
   {
     id: 'emerald',
     name: 'Emerald Badge',
-    description: 'Purchase with 20000 coins',
-    cost: 20000,
+    description: 'Purchase with 10000 coins',
+    cost: 10000,
     badgeColor: '#50C878',
     emoji: '💚',
   },
   {
     id: 'diamond',
     name: 'Diamond Badge',
-    description: 'Purchase with 40000 coins',
-    cost: 40000,
+    description: 'Purchase with 20000 coins',
+    cost: 20000,
     badgeColor: '#B9F2FF',
     emoji: '💎',
   },
   {
     id: 'platinum',
     name: 'Platinum Badge',
-    description: 'Purchase with 100000 coins',
-    cost: 100000,
+    description: 'Purchase with 50000 coins',
+    cost: 50000,
     badgeColor: '#E5E4E2',
     emoji: '🏆',
   },
@@ -217,11 +217,6 @@ export default function Profile() {
                 badge={badge}
               />
             ))}
-          </View>
-          <View style={styles.platinumRewardMessage}>
-            <Text style={styles.rewardMessageText}>
-              Hit Platinum for $300+ mystery gift! 🎁
-            </Text>
           </View>
         </View>
       </ScrollView>

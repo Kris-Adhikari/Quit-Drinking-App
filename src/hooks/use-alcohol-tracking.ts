@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { AlcoholLog, DailyTracking, StreakData, UserStats } from '@/types/alcohol-log';
 import { useAuth } from './use-auth';
+import { useUserProfile } from './use-user-profile';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const useAlcoholTracking = () => {
   const { user } = useAuth();
+  const { profile, updateStreak } = useUserProfile();
   const [loading, setLoading] = useState(false);
   const [todayLogs, setTodayLogs] = useState<AlcoholLog[]>([]);
   
@@ -30,49 +32,57 @@ export const useAlcoholTracking = () => {
 
   // Check if we're using mock data
   const isUsingMockData = () => {
-    return true; // Always use mock data in development
+    return !process.env.EXPO_PUBLIC_SUPABASE_URL || !process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
   };
 
-  // Load streak data from AsyncStorage
+  // Load streak data from user profile
   const loadStreakData = useCallback(async () => {
-    try {
-      const saved = await AsyncStorage.getItem('streakData');
-      const lastStreakUpdate = await AsyncStorage.getItem('lastStreakUpdate');
+    if (!profile) return;
+    
+    const lastCheckIn = profile.last_check_in ? new Date(profile.last_check_in) : null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (lastCheckIn) {
+      lastCheckIn.setHours(0, 0, 0, 0);
+      // Check if streak should be reset (more than 1 day since last check-in)
+      const daysDiff = Math.floor((today.getTime() - lastCheckIn.getTime()) / (1000 * 60 * 60 * 24));
       
-      if (saved && lastStreakUpdate) {
-        const lastUpdate = new Date(lastStreakUpdate);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        lastUpdate.setHours(0, 0, 0, 0);
-        
-        // Only use saved streak if it was updated today or yesterday
-        const daysDiff = Math.floor((today.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24));
-        
-        if (daysDiff <= 1) {
-          setStreakData(JSON.parse(saved));
-        } else {
-          // Reset streak if it's been more than 1 day
-          console.log('Resetting streak - last update was more than 1 day ago');
-          await AsyncStorage.removeItem('streakData');
-          await AsyncStorage.removeItem('lastStreakUpdate');
-          setStreakData(defaultStreakData);
-        }
+      if (daysDiff > 1) {
+        // Reset streak if it's been more than 1 day
+        console.log('Resetting streak - last check-in was more than 1 day ago');
+        await updateStreak(0);
+        setStreakData({
+          ...defaultStreakData,
+          longest_streak: profile.longest_streak || 0,
+        });
+      } else {
+        setStreakData({
+          current_streak: profile.current_streak || 0,
+          longest_streak: profile.longest_streak || 0,
+          last_drink_date: null,
+          start_date: profile.created_at || new Date().toISOString(),
+        });
       }
-    } catch (error) {
-      console.log('Error loading streak data:', error);
+    } else {
+      setStreakData({
+        current_streak: profile.current_streak || 0,
+        longest_streak: profile.longest_streak || 0,
+        last_drink_date: null,
+        start_date: profile.created_at || new Date().toISOString(),
+      });
     }
-  }, []);
+  }, [profile, updateStreak]);
 
-  // Save streak data to AsyncStorage
+  // Save streak data to user profile
   const saveStreakData = useCallback(async (data: StreakData) => {
     try {
-      await AsyncStorage.setItem('streakData', JSON.stringify(data));
-      await AsyncStorage.setItem('lastStreakUpdate', new Date().toISOString());
+      await updateStreak(data.current_streak);
       setStreakData(data);
     } catch (error) {
       console.log('Error saving streak data:', error);
     }
-  }, []);
+  }, [updateStreak]);
 
   // Calculate streak from logs
   const calculateStreak = useCallback(async () => {
@@ -89,7 +99,7 @@ export const useAlcoholTracking = () => {
 
       // Group logs by date
       const logsByDate = new Map<string, AlcoholLog[]>();
-      logs?.forEach(log => {
+      logs?.forEach((log: AlcoholLog) => {
         const date = new Date(log.timestamp).toDateString();
         if (!logsByDate.has(date)) {
           logsByDate.set(date, []);
@@ -162,12 +172,13 @@ export const useAlcoholTracking = () => {
     }
   }, [user]);
 
-  // Load mock logs from AsyncStorage
-  const loadMockLogs = useCallback(async () => {
+  // Load cached logs for offline support
+  const loadCachedLogs = useCallback(async () => {
+    if (!user) return;
     try {
-      const saved = await AsyncStorage.getItem('mockTodayLogs');
-      if (saved) {
-        const logs = JSON.parse(saved);
+      const cached = await AsyncStorage.getItem(`logs_today_${user.id}`);
+      if (cached) {
+        const logs = JSON.parse(cached);
         // Filter for today's logs only
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -177,29 +188,20 @@ export const useAlcoholTracking = () => {
           return logDate.getTime() === today.getTime();
         });
         setTodayLogs(todayLogs);
-      } else {
-        setTodayLogs([]);
       }
     } catch (error) {
-      console.log('Error loading mock logs:', error);
+      console.log('Error loading cached logs:', error);
     }
-  }, []);
-
-  // Save mock logs to AsyncStorage
-  const saveMockLogs = async (logs: AlcoholLog[]) => {
-    try {
-      await AsyncStorage.setItem('mockTodayLogs', JSON.stringify(logs));
-    } catch (error) {
-      console.log('Error saving mock logs:', error);
-    }
-  };
+  }, [user]);
 
   // Load today's logs
   const loadTodayLogs = useCallback(async () => {
     if (!user?.id) return;
     
+    // Load cached data first for instant display
+    await loadCachedLogs();
+    
     if (isUsingMockData()) {
-      await loadMockLogs();
       return;
     }
 
@@ -221,17 +223,21 @@ export const useAlcoholTracking = () => {
       if (error) throw error;
 
       setTodayLogs(data || []);
+      // Cache the fresh data
+      if (data) {
+        await AsyncStorage.setItem(`logs_today_${user.id}`, JSON.stringify(data));
+      }
     } catch (error: any) {
-      // Network error - keep using empty logs
+      // Network error - cached data will be used
       if (error?.message?.includes('Network request failed')) {
-        console.log('Using mock data - Supabase not configured');
+        console.log('Using cached data - network unavailable');
       } else {
         console.error('Error loading today logs:', error);
       }
     } finally {
       setLoading(false);
     }
-  }, [user, loadMockLogs]);
+  }, [user, loadCachedLogs]);
 
   // Calculate user stats
   const calculateStats = useCallback(async () => {
@@ -252,7 +258,7 @@ export const useAlcoholTracking = () => {
 
       // Group by date to find alcohol-free days
       const drinksPerDate = new Map<string, number>();
-      logs?.forEach(log => {
+      logs?.forEach((log: AlcoholLog) => {
         const date = new Date(log.timestamp).toDateString();
         drinksPerDate.set(date, (drinksPerDate.get(date) || 0) + log.amount);
       });
@@ -261,7 +267,7 @@ export const useAlcoholTracking = () => {
 
       // Calculate weekly average
       const weeks = Math.ceil(totalDays / 7);
-      const totalDrinks = logs?.reduce((sum, log) => sum + log.amount, 0) || 0;
+      const totalDrinks = logs?.reduce((sum: number, log: AlcoholLog) => sum + log.amount, 0) || 0;
       const avgDrinksPerWeek = totalDrinks / weeks;
 
       // Estimate money and calories saved
@@ -317,7 +323,10 @@ export const useAlcoholTracking = () => {
       
       const newLogs = [mockLog, ...todayLogs];
       setTodayLogs(newLogs);
-      await saveMockLogs(newLogs); // Persist the mock logs
+      // Cache the updated logs
+      if (user) {
+        await AsyncStorage.setItem(`logs_today_${user.id}`, JSON.stringify(newLogs));
+      }
       
       // Reset streak if adding a drink
       setStreakData({
@@ -370,27 +379,36 @@ export const useAlcoholTracking = () => {
 
   // Increment streak (when all daily tasks are completed)
   const incrementStreak = async () => {
+    const newStreakValue = streakData.current_streak + 1;
     const newStreakData = {
       ...streakData,
-      current_streak: streakData.current_streak + 1,
-      longest_streak: Math.max(streakData.longest_streak, streakData.current_streak + 1),
+      current_streak: newStreakValue,
+      longest_streak: Math.max(streakData.longest_streak, newStreakValue),
     };
-    await saveStreakData(newStreakData);
+    
+    // Save to user profile (which handles Supabase persistence)
+    await updateStreak(newStreakValue);
+    
+    // Also update local state for immediate display
+    setStreakData(newStreakData);
   };
 
-  // Load all data on mount and when user changes
+  // Load streak data when profile changes
   useEffect(() => {
-    loadStreakData(); // Always load streak data (even without user)
-    
+    loadStreakData();
+  }, [loadStreakData]);
+  
+  // Load other data when user changes
+  useEffect(() => {
     if (user?.id) {
-      loadTodayLogs(); // This will now load mock logs if in mock mode
+      loadTodayLogs();
       calculateStreak();
       calculateStats();
     }
-  }, [user, loadTodayLogs, calculateStreak, calculateStats, loadStreakData]);
+  }, [user?.id]);
 
   // Calculate today's total drinks
-  const todayTotal = todayLogs.reduce((sum, log) => sum + log.amount, 0);
+  const todayTotal = todayLogs.reduce((sum: number, log: AlcoholLog) => sum + log.amount, 0);
 
   // Memoize refreshData to prevent infinite re-renders
   const refreshData = useCallback(async () => {

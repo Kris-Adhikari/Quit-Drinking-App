@@ -40,9 +40,9 @@ interface DayData {
 
 export default function Daily() {
   const router = useRouter();
-  const { user } = useAuth();
-  const { profile } = useUserProfile();
-  const { streakData, incrementStreak, todayTotal, todayLogs, refreshData } = useAlcoholTracking();
+  const { user, signOut } = useAuth();
+  const { profile, reloadProfile, updateStreak, saveProfile } = useUserProfile();
+  const { todayTotal, todayLogs, refreshData } = useAlcoholTracking();
   const { coins, addCoins, loadCoins } = useCoins();
   const [tasksExpanded, setTasksExpanded] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -100,7 +100,13 @@ export default function Daily() {
       const loadData = async () => {
         await loadTaskStates();
         await loadCoins();
-        await refreshData(); // Refresh alcohol tracking data when screen gains focus
+        await reloadProfile();
+        await refreshData();
+        
+        // Force another profile reload after a brief delay to catch any updates from other screens
+        setTimeout(async () => {
+          await reloadProfile();
+        }, 500);
         
         // Check today's drink status and count
         try {
@@ -175,15 +181,6 @@ export default function Daily() {
         completed: false,
         route: '/content/breathing',
       });
-    } else if (dayOffset === 1) {
-      baseTasks.push({
-        id: `task3_${dayOffset}`,
-        title: 'Reflection Journal',
-        duration: '10 min',
-        icon: '📝',
-        completed: false,
-        route: '/content/journal',
-      });
     }
 
     // Check if tasks are completed from state
@@ -196,13 +193,22 @@ export default function Daily() {
   // Check if all tasks for a specific day are completed
   const checkDayCompletion = useCallback(async (dayOffset: number) => {
     const todayTasks = getTasksForDay(dayOffset);
-    const allCompleted = todayTasks.every(task => taskStates[task.id]);
+    
+    // Don't trigger completion if there are no tasks
+    if (todayTasks.length === 0) {
+      return;
+    }
+    
+    // Don't trigger if taskStates hasn't been loaded yet (all tasks would be undefined)
+    const hasAnyTaskState = todayTasks.some(task => taskStates.hasOwnProperty(task.id));
+    const allCompleted = hasAnyTaskState && todayTasks.every(task => taskStates[task.id]);
     
     if (allCompleted && dayOffset === 0) { // Only for today
       const today = new Date().toDateString();
       
       // Check if we already completed today
       if (!dayCompleted[today]) {
+        // Immediately mark as completed to prevent duplicate calls
         const newDayCompleted = {
           ...dayCompleted,
           [today]: true,
@@ -212,21 +218,46 @@ export default function Daily() {
         
         try {
           await AsyncStorage.setItem('completedDays', JSON.stringify(newDayCompleted));
-          // Increment streak
-          await incrementStreak();
           
-          // Add reward coins
-          await addCoins(50);
+          // Check last check-in date to prevent incrementing streak multiple times same day
+          const lastCheckIn = profile?.last_check_in;
+          const lastCheckInDate = lastCheckIn ? new Date(lastCheckIn).toDateString() : null;
+          const shouldIncrementStreak = lastCheckInDate !== today;
           
-          // Show celebration popup
-          setNewStreakCount(streakData.current_streak + 1);
+          // Update streak and coins atomically to prevent race condition
+          const currentStreak = profile?.current_streak || 0;
+          const currentCoins = profile?.coins || 0;
+          const newStreakValue = shouldIncrementStreak ? currentStreak + 1 : currentStreak;
+          const newCoinsValue = currentCoins + 50;
+          
+          // Create atomic update for both streak and coins
+          const atomicUpdate = {
+            current_streak: newStreakValue,
+            longest_streak: Math.max(newStreakValue, profile?.longest_streak || 0),
+            last_check_in: new Date().toISOString(),
+            coins: newCoinsValue,
+          };
+          
+          // Use saveProfile directly to make atomic update
+          const atomicResult = await saveProfile(atomicUpdate);
+          
+          // Reload profile to show updated coins and streak immediately
+          await reloadProfile();
+          
+          // Wait a bit and reload again to ensure we get the updated data
+          setTimeout(async () => {
+            await reloadProfile();
+          }, 1000);
+          
+          // Show celebration popup with the correct new streak
+          setNewStreakCount(newStreakValue);
           setShowCelebration(true);
         } catch (error) {
-          console.log('Error saving day completion:', error);
+          console.log('ERROR saving day completion:', error);
         }
       }
     }
-  }, [taskStates, dayCompleted, incrementStreak, addCoins, streakData.current_streak]);
+  }, [taskStates, dayCompleted, updateStreak, addCoins, reloadProfile, profile?.current_streak]);
 
   // Check day completion when task states change
   useEffect(() => {
@@ -311,7 +342,7 @@ export default function Daily() {
 
   const handleTaskPress = (task: Task) => {
     if (task.route) {
-      if (task.route === '/daily-quote' || task.route === '/neuroplasticity-article') {
+      if (task.route === '/daily-quote' || task.route === '/neuroplasticity-article' || task.route.startsWith('/articles/')) {
         router.push({
           pathname: task.route,
           params: { taskId: task.id }
@@ -346,7 +377,7 @@ export default function Daily() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.coinsContainer}>
-          <Text style={styles.coinsText}>🏅 {coins}</Text>
+          <Text style={styles.coinsText}>🏅 {profile ? (profile.coins || 0) : '...'}</Text>
         </View>
       </View>
 
@@ -362,21 +393,35 @@ export default function Daily() {
           <Text style={styles.userName}>{firstName}</Text>
         </Text>
 
-        {/* Test Button */}
-        <TouchableOpacity 
-          style={styles.testButton}
-          onPress={() => {
-            setNewStreakCount(streakData.current_streak + 1);
-            setShowCelebration(true);
-          }}
-        >
-          <Text style={styles.testButtonText}>TEST CELEBRATION</Text>
-        </TouchableOpacity>
+        {/* Test Buttons */}
+        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+          <TouchableOpacity 
+            style={styles.testButton} 
+            onPress={async () => {
+              const result = await saveProfile({ onboarding_completed: true });
+              console.log('Onboarding completion result:', result);
+              await reloadProfile();
+            }}
+          >
+            <Text style={styles.testButtonText}>Complete Onboarding</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.testButton} 
+            onPress={async () => {
+              await signOut();
+              router.replace('/');
+            }}
+          >
+            <Text style={styles.testButtonText}>Sign Out</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Streak Counter */}
         <View style={styles.streakContainer}>
           <View style={styles.streakCircle}>
-            <Text style={styles.streakNumber}>{streakData.current_streak}</Text>
+            <Text style={styles.streakNumber}>
+              {profile ? (profile.current_streak || 0) : '...'}
+            </Text>
             <Text style={styles.streakLabel}>Day Streak</Text>
           </View>
         </View>

@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
   },
   bottomContainer: {
     marginTop: 'auto',
-    paddingBottom: 30,
+    paddingBottom: 40,
   },
   continueButton: {
     backgroundColor: '#1a3a7b',

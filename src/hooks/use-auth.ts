@@ -33,7 +33,7 @@ export const useAuth = () => {
     }
 
     // Real Supabase authentication
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -41,7 +41,7 @@ export const useAuth = () => {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event: string, session: Session | null) => {
       setSession(session);
       setUser(session?.user ?? null);
     });
@@ -49,20 +49,39 @@ export const useAuth = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signInWithOAuth = async (provider: 'google' | 'apple' | 'github') => {
+  const signInWithOAuth = async (provider: 'google' | 'apple' | 'github', redirectUrl?: string) => {
     const isSupabaseConfigured = process.env.EXPO_PUBLIC_SUPABASE_URL && process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
     
     if (!isSupabaseConfigured) {
-      console.log('Mock OAuth sign in:', provider);
-      return { data: null, error: { message: 'Authentication is disabled in development mode' } };
+      // For testing, create a mock successful OAuth
+      setTimeout(() => {
+        const mockUser = {
+          id: `oauth-${Date.now()}`,
+          email: 'user@gmail.com',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          app_metadata: { provider: 'google' },
+          user_metadata: { name: 'Test User', email: 'user@gmail.com' },
+          aud: 'authenticated',
+          role: 'authenticated',
+        } as User;
+        setUser(mockUser);
+        setSession({ user: mockUser, access_token: 'mock-token', token_type: 'bearer', expires_in: 3600, expires_at: Date.now() + 3600000 } as Session);
+      }, 1000);
+      return { data: { user: null, session: null }, error: null };
+    }
+    
+    const options: any = {
+      skipBrowserRedirect: true, // Important for React Native
+    };
+    
+    if (redirectUrl) {
+      options.redirectTo = redirectUrl;
     }
     
     return await supabase.auth.signInWithOAuth({
       provider,
-      options: {
-        redirectTo: window.location.origin, // Supabase handles the redirect
-        skipBrowserRedirect: true, // Important for React Native
-      },
+      options,
     });
   };
 
@@ -70,7 +89,6 @@ export const useAuth = () => {
     const isSupabaseConfigured = process.env.EXPO_PUBLIC_SUPABASE_URL && process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
     
     if (!isSupabaseConfigured) {
-      console.log('Mock sign in:', email);
       return { data: null, error: { message: 'Authentication is disabled in development mode' } };
     }
     
@@ -81,7 +99,6 @@ export const useAuth = () => {
     const isSupabaseConfigured = process.env.EXPO_PUBLIC_SUPABASE_URL && process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
     
     if (!isSupabaseConfigured) {
-      console.log('Mock sign up:', email);
       return { data: null, error: { message: 'Authentication is disabled in development mode' } };
     }
     
@@ -92,11 +109,34 @@ export const useAuth = () => {
     const isSupabaseConfigured = process.env.EXPO_PUBLIC_SUPABASE_URL && process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
     
     if (!isSupabaseConfigured) {
-      console.log('Mock sign out');
       return { error: null };
     }
     
     return await supabase.auth.signOut();
+  };
+
+  const signInAnonymously = async () => {
+    const isSupabaseConfigured = process.env.EXPO_PUBLIC_SUPABASE_URL && process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+    
+    if (!isSupabaseConfigured) {
+      // Create a mock anonymous user
+      const mockUser = {
+        id: `anon-${Date.now()}`,
+        email: undefined,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        app_metadata: { provider: 'anonymous' },
+        user_metadata: {},
+        aud: 'authenticated',
+        role: 'authenticated',
+      } as User;
+      setUser(mockUser);
+      setSession({ user: mockUser, access_token: 'mock-token', token_type: 'bearer', expires_in: 3600, expires_at: Date.now() + 3600000 } as Session);
+      return { data: { user: mockUser, session: null }, error: null };
+    }
+    
+    // Supabase anonymous auth
+    return await supabase.auth.signInAnonymously();
   };
 
   return {
@@ -107,5 +147,6 @@ export const useAuth = () => {
     signUp,
     signOut,
     signInWithOAuth,
+    signInAnonymously,
   };
 };

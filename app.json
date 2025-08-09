@@ -45,7 +45,8 @@
           "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera for food photo scanning."
         }
       ],
-      "expo-router"
+      "expo-router",
+      "expo-tracking-transparency"
     ]
   }
 }

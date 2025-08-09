@@ -177,7 +177,8 @@ const styles = StyleSheet.create({
     color: '#666666',
   },
   bottomContainer: {
-    padding: 20,
+    paddingBottom: 40,
+    paddingHorizontal: 20,
     alignItems: 'center',
   },
   continueButton: {

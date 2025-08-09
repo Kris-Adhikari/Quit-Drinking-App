@@ -55,7 +55,7 @@ export default function ArticlePage() {
         setIsCompleted(true);
         
         setTimeout(() => {
-          router.back();
+          router.push('/(tabs)/daily');
         }, 1000);
       } catch (error) {
         console.log('Error saving task completion:', error);
@@ -69,7 +69,7 @@ export default function ArticlePage() {
         <StatusBar barStyle="dark-content" backgroundColor="#f5f7fb" />
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Article not found</Text>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/daily')} style={styles.backButton}>
             <Text style={styles.backButtonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
@@ -83,7 +83,7 @@ export default function ArticlePage() {
       
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => router.push('/(tabs)/daily')} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
       </View>
