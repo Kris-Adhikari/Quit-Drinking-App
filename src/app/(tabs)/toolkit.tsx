@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,15 +8,22 @@ import {
   SafeAreaView,
   StatusBar,
   Dimensions,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { alcoholSwapTips } from '@/lib/weight-loss-content';
+import { workoutLibrary } from '@/lib/workout-content';
 
 const { width } = Dimensions.get('window');
 const cardWidth = (width - 48) / 2; // 2 columns with padding
+const swapCardWidth = width - 80; // Card width with good margins
 
 export default function Toolkit() {
   const router = useRouter();
+  const [activeSwapIndex, setActiveSwapIndex] = useState(0);
+  const swapScrollRef = useRef<ScrollView>(null);
 
   const cravingTools = [
     {
@@ -86,6 +93,18 @@ export default function Toolkit() {
     console.log('Private coaching pressed - Calendly integration pending');
   };
 
+  const handleWorkoutLibraryPress = () => {
+    router.push('/workout-library');
+  };
+
+  const handleSwapScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const contentOffsetX = event.nativeEvent.contentOffset.x + 40; // Account for initial offset
+    const cardWithGap = swapCardWidth + 16;
+    const index = Math.round(contentOffsetX / cardWithGap);
+    const clampedIndex = Math.max(0, Math.min(index, alcoholSwapTips.length - 1));
+    setActiveSwapIndex(clampedIndex);
+  };
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -132,6 +151,88 @@ export default function Toolkit() {
           </View>
           <View style={styles.aiIconContainer}>
             <MaterialCommunityIcons name="robot-excited" size={60} color="#ffffff" />
+          </View>
+        </TouchableOpacity>
+
+        {/* Weight-Loss Swap Tips Section */}
+        <View style={styles.swapTipsSection}>
+          <View style={styles.swapTipsHeader}>
+            <Text style={styles.swapTipsIcon}>🥗</Text>
+            <Text style={styles.swapTipsTitle}>Weight Loss Swaps</Text>
+          </View>
+          <Text style={styles.swapTipsSubtitle}>
+            Smart alternatives that support your goals
+          </Text>
+          
+          <ScrollView 
+            ref={swapScrollRef}
+            horizontal
+            pagingEnabled={false}
+            showsHorizontalScrollIndicator={false}
+            onScroll={handleSwapScroll}
+            scrollEventThrottle={16}
+            style={styles.swapCardsContainer}
+            contentContainerStyle={styles.swapCardsContentContainer}
+            snapToInterval={swapCardWidth + 16} // Card width plus gap
+            snapToAlignment="start"
+            decelerationRate="fast"
+            contentInset={{ left: 40, right: 40 }}
+            contentOffset={{ x: -40, y: 0 }}
+          >
+            {alcoholSwapTips.map((category, index) => (
+              <View 
+                key={index} 
+                style={[
+                  styles.swapCard, 
+                  { width: swapCardWidth },
+                  index === 0 && { marginLeft: 40 },
+                  index === alcoholSwapTips.length - 1 && { marginRight: 40 }
+                ]}
+              >
+                <Text style={styles.swapCardTitle}>{category.title}</Text>
+                <View style={styles.swapCardDivider} />
+                <View style={styles.swapCardContent}>
+                  {category.tips.slice(0, 3).map((tip, tipIndex) => (
+                    <View key={tipIndex} style={styles.swapCardTip}>
+                      <Text style={styles.swapCardBullet}>•</Text>
+                      <Text style={styles.swapCardTipText} numberOfLines={2} ellipsizeMode="tail">
+                        {tip}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+          
+          {/* Pagination Dots */}
+          <View style={styles.paginationContainer}>
+            {alcoholSwapTips.map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.paginationDot,
+                  index === activeSwapIndex && styles.paginationDotActive,
+                ]}
+              />
+            ))}
+          </View>
+        </View>
+
+        {/* Workout Library Section */}
+        <TouchableOpacity 
+          style={styles.workoutLibraryBanner}
+          onPress={handleWorkoutLibraryPress}
+          activeOpacity={0.9}
+        >
+          <View style={styles.workoutLibraryContent}>
+            <Text style={styles.workoutLibraryTitle}>Workout Library</Text>
+            <Text style={styles.workoutLibrarySubtitle}>
+              Exercise routines designed for cravings and weight loss
+            </Text>
+          </View>
+          <View style={styles.workoutIconContainer}>
+            <MaterialCommunityIcons name="dumbbell" size={60} color="#ffffff" />
           </View>
         </TouchableOpacity>
 
@@ -392,5 +493,127 @@ const styles = StyleSheet.create({
     backgroundColor: '#7cc5c5',
     position: 'absolute',
     top: -6,
+  },
+  // Weight-Loss Swap Tips Styles
+  swapTipsSection: {
+    marginBottom: 30,
+  },
+  swapTipsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    paddingHorizontal: 0,
+  },
+  swapTipsIcon: {
+    fontSize: 24,
+    marginRight: 10,
+  },
+  swapTipsTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#14532d',
+  },
+  swapTipsSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  swapCardsContainer: {
+    marginHorizontal: -20,
+    height: 210,
+  },
+  swapCardsContentContainer: {
+    paddingVertical: 10,
+  },
+  swapCard: {
+    backgroundColor: '#f0fdf4',
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 8,
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    height: 190,
+    overflow: 'hidden',
+  },
+  swapCardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#15803d',
+    marginBottom: 8,
+  },
+  swapCardDivider: {
+    height: 1,
+    backgroundColor: '#bbf7d0',
+    marginBottom: 10,
+  },
+  swapCardTip: {
+    flexDirection: 'row',
+    marginBottom: 8,
+    paddingRight: 10, // Add padding to prevent text cutoff
+  },
+  swapCardBullet: {
+    fontSize: 12,
+    color: '#16a34a',
+    marginRight: 8,
+    marginTop: 1,
+    flexShrink: 0, // Prevent bullet from shrinking
+  },
+  swapCardTipText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#166534',
+    lineHeight: 17,
+  },
+  swapCardContent: {
+    flex: 1,
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 12,
+    gap: 8,
+  },
+  paginationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#d1fae5',
+  },
+  paginationDotActive: {
+    backgroundColor: '#16a34a',
+    width: 24,
+  },
+  // Workout Library Banner Styles
+  workoutLibraryBanner: {
+    backgroundColor: '#10b981',
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  workoutLibraryContent: {
+    flex: 1,
+  },
+  workoutLibraryTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginBottom: 8,
+  },
+  workoutLibrarySubtitle: {
+    fontSize: 16,
+    color: '#d1fae5',
+    fontWeight: '500',
+  },
+  workoutIconContainer: {
+    marginLeft: 16,
   },
 });

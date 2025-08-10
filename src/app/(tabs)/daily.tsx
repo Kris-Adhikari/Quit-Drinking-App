@@ -21,6 +21,8 @@ import { useCoins } from '@/hooks/use-coins';
 import { useUserProfile } from '@/hooks/use-user-profile';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getArticleForDay } from '@/data/alcohol-articles';
+import { weightLossTips, afDayBenefits, CALORIES_PER_DRINK } from '@/lib/weight-loss-content';
+import { getDailyWorkout, getBurnADrinkTime } from '@/lib/workout-content';
 
 const { width } = Dimensions.get('window');
 
@@ -56,11 +58,87 @@ export default function Daily() {
   const [newStreakCount, setNewStreakCount] = useState(0);
   const [todayDrinkStatus, setTodayDrinkStatus] = useState<'logged' | 'sober' | null>(null);
   const [storedDrinkCount, setStoredDrinkCount] = useState<number>(0);
+  const [todayCalories, setTodayCalories] = useState<number>(0);
+  const [totalCaloriesSaved, setTotalCaloriesSaved] = useState<number>(0);
+  const [jarResetMessage, setJarResetMessage] = useState<string>('');
+  const [rewardedPounds, setRewardedPounds] = useState<number>(0);
+  const [workoutCompleted, setWorkoutCompleted] = useState<boolean>(false);
 
   const CARD_WIDTH = 82; // Card width + gap
 
   // Today is always index 0 (since we start from today)
   const todayIndex = 0;
+
+  // Use the same logic as the calendar to get accurate drink data
+  const getActualDrinkData = () => {
+    // Always prioritize showing drinks if there are any
+    if (todayTotal > 0) {
+      return { 
+        isSober: false,
+        drinkCount: Math.round(todayTotal),
+        hasData: true,
+        calories: todayCalories // Use accurate calories
+      };
+    }
+    
+    // Check if task is completed and what type
+    const taskCompleted = taskStates[`task_drinks_0`] || false;
+    if (taskCompleted) {
+      // Use the drink status to determine what to show
+      if (todayDrinkStatus === 'logged') {
+        // Drinks were logged - show the stored count
+        const displayCount = Math.max(todayTotal, storedDrinkCount);
+        return { 
+          isSober: false,
+          drinkCount: Math.round(displayCount),
+          hasData: true,
+          calories: todayCalories // Use accurate calories from storage
+        };
+      } else if (todayDrinkStatus === 'sober') {
+        // "No Drinks Today" was pressed
+        return { 
+          isSober: true,
+          drinkCount: 0,
+          hasData: true,
+          calories: 0
+        };
+      }
+    }
+    
+    // No data for today yet
+    return { isSober: false, drinkCount: 0, hasData: false, calories: 0 };
+  };
+
+  const actualDrinkData = getActualDrinkData();
+  const caloriesFromDrinks = actualDrinkData.calories || Math.round(actualDrinkData.drinkCount * CALORIES_PER_DRINK);
+  
+  // Get today's workout
+  const todayWorkout = getDailyWorkout();
+  const burnADrinkTime = getBurnADrinkTime(todayWorkout.calories);
+
+  // Weight loss progress calculations
+  const CALORIES_PER_POUND = 3500; // Standard calories in 1 lb of fat
+  const currentCaloriesForJar = totalCaloriesSaved % CALORIES_PER_POUND; // Reset every pound
+  const progressPercent = Math.min(100, (currentCaloriesForJar / CALORIES_PER_POUND) * 100);
+  const totalDots = 20; // 20 dots for visual progress
+  const filledDots = Math.floor((progressPercent / 100) * totalDots);
+  const poundsLost = Math.floor(totalCaloriesSaved / CALORIES_PER_POUND);
+  
+  // Add calories saved today if it's an AF day
+  const caloriesSavedToday = actualDrinkData.isSober ? 280 : 0; // Assume 2 drinks worth (2 * 140)
+
+  // Get random daily tip and benefit highlight based on current date
+  const getDailyTip = () => {
+    const today = new Date();
+    const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 86400000);
+    return weightLossTips[dayOfYear % weightLossTips.length];
+  };
+
+  const getAFBenefit = () => {
+    const today = new Date();
+    const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 86400000);
+    return afDayBenefits[dayOfYear % afDayBenefits.length];
+  };
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -68,6 +146,40 @@ export default function Daily() {
     }, 60000); // Update every minute
     return () => clearInterval(timer);
   }, []);
+
+  // Function to check and award jar completion
+  const checkJarCompletion = useCallback(async (newTotalCalories: number) => {
+    const currentPounds = Math.floor(newTotalCalories / CALORIES_PER_POUND);
+    
+    // Only award if we have a new pound that hasn't been rewarded yet
+    if (currentPounds > rewardedPounds && currentPounds > 0) {
+      // Immediately update to prevent duplicates
+      setRewardedPounds(currentPounds);
+      await AsyncStorage.setItem('rewardedPounds', currentPounds.toString());
+      
+      // Award coins using the same pattern as daily streaks - atomic update
+      try {
+        const currentCoins = profile?.coins || 0;
+        const newCoinsValue = currentCoins + 50;
+        
+        // Atomic update to Supabase
+        const result = await saveProfile({ 
+          coins: newCoinsValue
+        });
+        
+        if (result.success) {
+          await reloadProfile(); // Reload to show updated coins
+          console.log('Added 50 coins for completing weight loss jar - pound', currentPounds);
+          
+          setJarResetMessage(`milestone-${currentPounds}`); // Use identifier instead of full message
+        } else {
+          console.log('Error saving coins to profile:', result.error);
+        }
+      } catch (error) {
+        console.log('Error adding coins for jar completion:', error);
+      }
+    }
+  }, [rewardedPounds, profile?.coins, saveProfile, reloadProfile]);
 
   // Scroll to today on mount
   useEffect(() => {
@@ -106,6 +218,7 @@ export default function Daily() {
         // Force another profile reload after a brief delay to catch any updates from other screens
         setTimeout(async () => {
           await reloadProfile();
+          await refreshData(); // Also refresh drink data
         }, 500);
         
         // Check today's drink status and count
@@ -117,8 +230,16 @@ export default function Daily() {
           if (statusData) {
             const { date, status } = JSON.parse(statusData);
             if (date === today) {
-              setTodayDrinkStatus(status);
+              // If drinks are logged, clear the sober status
+              if (todayTotal > 0 && status === 'sober') {
+                setTodayDrinkStatus('logged');
+              } else {
+                setTodayDrinkStatus(status);
+              }
             }
+          } else if (todayTotal > 0) {
+            // If no status but drinks are logged, set as logged
+            setTodayDrinkStatus('logged');
           }
           
           if (countDate === today) {
@@ -127,12 +248,49 @@ export default function Daily() {
           } else {
             setStoredDrinkCount(0);
           }
+          
+          // Load today's calories
+          const caloriesData = await AsyncStorage.getItem('todayCalories');
+          if (caloriesData) {
+            const { date, calories } = JSON.parse(caloriesData);
+            if (date === today) {
+              setTodayCalories(calories || 0);
+            } else {
+              setTodayCalories(0);
+            }
+          } else {
+            setTodayCalories(0);
+          }
+          
+          // Load total calories saved for weight progress
+          const totalSavedData = await AsyncStorage.getItem('totalCaloriesSaved');
+          if (totalSavedData) {
+            setTotalCaloriesSaved(parseInt(totalSavedData) || 0);
+          }
+          
+          // Load rewarded pounds to prevent duplicate coin rewards
+          const rewardedData = await AsyncStorage.getItem('rewardedPounds');
+          if (rewardedData) {
+            setRewardedPounds(parseInt(rewardedData) || 0);
+          }
+          
+          // Load today's workout completion
+          const workoutData = await AsyncStorage.getItem('dailyWorkoutCompleted');
+          if (workoutData) {
+            const { date, completed } = JSON.parse(workoutData);
+            if (date === today) {
+              setWorkoutCompleted(completed || false);
+            } else {
+              setWorkoutCompleted(false);
+            }
+          }
+          
         } catch (error) {
           console.log('Error loading drink data:', error);
         }
       };
       loadData();
-    }, [loadTaskStates, loadCoins, refreshData])
+    }, [loadTaskStates, loadCoins, refreshData, reloadProfile])
   );
 
   // Generate tasks for different days
@@ -252,6 +410,19 @@ export default function Daily() {
           // Show celebration popup with the correct new streak
           setNewStreakCount(newStreakValue);
           setShowCelebration(true);
+          
+          // If it's an AF day, add calories saved for weight progress
+          if (todayDrinkStatus === 'sober' || (todayTotal === 0 && taskStates[`task_drinks_0`])) {
+            const caloriesSaved = 280; // Assume 2 drinks avoided (2 * 140)
+            const newTotalSaved = totalCaloriesSaved + caloriesSaved;
+            setTotalCaloriesSaved(newTotalSaved);
+            await AsyncStorage.setItem('totalCaloriesSaved', newTotalSaved.toString());
+            
+            // Check for jar completion and award coins
+            await checkJarCompletion(newTotalSaved);
+            
+            console.log('Added calories saved:', caloriesSaved, 'New total:', newTotalSaved);
+          }
         } catch (error) {
           console.log('ERROR saving day completion:', error);
         }
@@ -370,6 +541,21 @@ export default function Daily() {
     }
   };
 
+  const toggleWorkoutCompletion = async () => {
+    const newCompleted = !workoutCompleted;
+    setWorkoutCompleted(newCompleted);
+    
+    try {
+      const today = new Date().toDateString();
+      await AsyncStorage.setItem('dailyWorkoutCompleted', JSON.stringify({
+        date: today,
+        completed: newCompleted
+      }));
+    } catch (error) {
+      console.log('Error saving workout completion:', error);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f5f7fb" />
@@ -408,8 +594,26 @@ export default function Daily() {
           <TouchableOpacity 
             style={styles.testButton} 
             onPress={async () => {
+              const caloriesSaved = 280;
+              const newTotalSaved = totalCaloriesSaved + caloriesSaved;
+              setTotalCaloriesSaved(newTotalSaved);
+              await AsyncStorage.setItem('totalCaloriesSaved', newTotalSaved.toString());
+              
+              // Check for jar completion and award coins
+              await checkJarCompletion(newTotalSaved);
+              
+              console.log('Test: Added calories saved:', caloriesSaved, 'New total:', newTotalSaved);
+            }}
+          >
+            <Text style={styles.testButtonText}>Add 280 Cal Saved</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.testButton} 
+            onPress={async () => {
               await signOut();
-              router.replace('/');
+              // Clear AsyncStorage to remove any cached session data
+              await AsyncStorage.clear();
+              router.replace('/auth/sign-in');
             }}
           >
             <Text style={styles.testButtonText}>Sign Out</Text>
@@ -435,9 +639,10 @@ export default function Daily() {
             <View style={styles.drinksSummaryText}>
               <Text style={styles.drinksSummaryTitle}>Today's Drinks</Text>
               <Text style={styles.drinksSummaryCount}>
-                {todayTotal === 0 ? 'No drinks logged' : 
-                 todayTotal === 1 ? '1 drink' : 
-                 `${todayTotal.toFixed(1)} drinks`}
+                {actualDrinkData.drinkCount === 0 ? 
+                  (actualDrinkData.isSober ? 'Alcohol-Free Day' : 'No drinks logged') : 
+                 actualDrinkData.drinkCount === 1 ? '1 drink' : 
+                 `${actualDrinkData.drinkCount} drinks`}
               </Text>
             </View>
             <TouchableOpacity 
@@ -447,6 +652,129 @@ export default function Daily() {
               <Text style={styles.logDrinksQuickButtonText}>Log</Text>
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* Calories Display - Always show */}
+        <View style={[
+          styles.caloriesSavedCard,
+          (actualDrinkData.isSober || todayDrinkStatus === 'sober' || (todayTotal === 0 && taskStates[`task_drinks_0`])) && styles.caloriesAFCard
+        ]}>
+          {(actualDrinkData.isSober || todayDrinkStatus === 'sober' || (todayTotal === 0 && taskStates[`task_drinks_0`])) ? (
+            <View style={styles.celebrationCardContent}>
+              <View style={styles.celebrationIcon}>
+                <Text style={styles.celebrationEmoji}>✨</Text>
+              </View>
+              <View style={styles.celebrationTextContainer}>
+                <Text style={styles.celebrationCardTitle}>Alcohol-Free Day!</Text>
+                <Text style={styles.celebrationCardSubtitle}>Zero calories from drinks today</Text>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.caloriesCardContent}>
+              <View style={styles.caloriesIcon}>
+                <Text style={styles.caloriesEmoji}>🍷</Text>
+              </View>
+              <View style={styles.caloriesTextContainer}>
+                <Text style={styles.caloriesCardTitle}>Calories from Drinks</Text>
+                <Text style={styles.caloriesCardNumber}>{caloriesFromDrinks}</Text>
+              </View>
+            </View>
+          )}
+        </View>
+
+        {/* Weight Loss Fact - Shows on AF days */}
+        {(todayDrinkStatus === 'sober' || todayTotal === 0) && (
+          <View style={styles.weightLossFactCard}>
+            <View style={styles.weightLossFactIcon}>
+              <Text style={styles.weightLossFactEmoji}>⚖️</Text>
+            </View>
+            <Text style={styles.weightLossFactText}>
+              Going Alcohol-Free can lead to 1-2 lbs weight loss per week!
+            </Text>
+          </View>
+        )}
+
+        {/* Weight Loss Progress Visual - Jar Visual */}
+        <View style={styles.weightProgressCard}>
+          <Text style={styles.weightProgressTitle}>Progress to Next Pound Lost</Text>
+          <Text style={styles.weightProgressSubtitle}>
+            {Math.round(progressPercent)}% complete • {currentCaloriesForJar.toLocaleString()}/{CALORIES_PER_POUND.toLocaleString()} calories saved
+          </Text>
+          
+          {/* Reset Message */}
+          {jarResetMessage !== '' && (
+            <TouchableOpacity 
+              style={styles.jarCelebrationCard}
+              onPress={() => setJarResetMessage('')}
+              activeOpacity={0.9}
+            >
+              <View style={styles.jarCelebrationHeader}>
+                <Text style={styles.jarCelebrationEmoji}>🎉</Text>
+                <Text style={styles.jarCelebrationTitle}>Milestone Achieved!</Text>
+              </View>
+              
+              <View style={styles.jarCelebrationContent}>
+                <Text style={styles.jarCelebrationMainText}>
+                  You've reached {Math.floor(totalCaloriesSaved / CALORIES_PER_POUND)} lb{Math.floor(totalCaloriesSaved / CALORIES_PER_POUND) > 1 ? 's' : ''} lost!
+                </Text>
+                <Text style={styles.jarCelebrationSubText}>
+                  Jar reset for next pound
+                </Text>
+              </View>
+              
+              <View style={styles.jarCelebrationReward}>
+                <Text style={styles.jarRewardIcon}>🏅</Text>
+                <Text style={styles.jarRewardText}>+50 Recoins</Text>
+              </View>
+              
+              <Text style={styles.jarCelebrationDismiss}>Tap anywhere to continue</Text>
+            </TouchableOpacity>
+          )}
+          
+          
+          {/* Jar Visual Container */}
+          <View style={styles.jarContainer}>
+            <View style={styles.jarLid}>
+              <Text style={styles.jarLidText}>1 LB</Text>
+            </View>
+            
+            <View style={styles.jarBody}>
+              {/* Jar Fill - represents progress */}
+              <View style={[
+                styles.jarFill,
+                { height: `${Math.max(5, progressPercent)}%` } // Minimum 5% to show something
+              ]}>
+                {/* Bubbles for visual interest */}
+                {progressPercent > 5 && <View style={[styles.bubble, styles.bubble1]} />}
+                {progressPercent > 20 && <View style={[styles.bubble, styles.bubble2]} />}
+                {progressPercent > 40 && <View style={[styles.bubble, styles.bubble3]} />}
+                {progressPercent > 60 && <View style={[styles.bubble, styles.bubble4]} />}
+              </View>
+              
+              {/* Percentage Text Inside Jar */}
+              <View style={styles.jarTextContainer}>
+                <Text style={styles.jarProgressText}>{Math.round(progressPercent)}%</Text>
+              </View>
+            </View>
+          </View>
+          
+          
+          {caloriesSavedToday > 0 && (
+            <Text style={styles.todayProgressText}>
+              +{caloriesSavedToday} calories saved today!
+            </Text>
+          )}
+        </View>
+
+        {/* Weight-Loss Benefit - Always show a fun fact */}
+        <View style={styles.afBenefitCard}>
+          <View style={styles.afBenefitIcon}>
+            <Text style={styles.afBenefitEmoji}>🌟</Text>
+          </View>
+          <Text style={styles.afBenefitTitle}>Did You Know?</Text>
+          <Text style={styles.afBenefitText}>
+            {getAFBenefit()}
+          </Text>
         </View>
 
         {/* Scrollable Days */}
@@ -562,6 +890,57 @@ export default function Daily() {
           </View>
         )}
 
+        {/* Weight-Loss Tip of the Day */}
+        <View style={styles.tipOfDayCard}>
+          <View style={styles.tipOfDayHeader}>
+            <Text style={styles.tipOfDayIcon}>💡</Text>
+            <Text style={styles.tipOfDayTitle}>Weight-Loss Tip</Text>
+          </View>
+          <Text style={styles.tipOfDayText}>
+            {getDailyTip()}
+          </Text>
+        </View>
+
+        {/* Daily Mini Workout */}
+        <View style={styles.workoutCard}>
+          <View style={styles.workoutHeader}>
+            <View style={styles.workoutHeaderLeft}>
+              <Text style={styles.workoutTitle}>Today's Mini Workout 💪</Text>
+              <Text style={styles.workoutSubtitle}>
+                {todayWorkout.duration} min • Burns {todayWorkout.calories} calories
+              </Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.workoutCheckbox}
+              onPress={toggleWorkoutCompletion}
+              activeOpacity={0.8}
+              hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
+            >
+              {workoutCompleted ? (
+                <View style={styles.workoutCheckboxCompleted}>
+                  <Ionicons name="checkmark" size={16} color="#ffffff" />
+                </View>
+              ) : (
+                <View style={styles.workoutCheckboxUncompleted} />
+              )}
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.workoutContent}>
+            <Text style={styles.workoutName}>{todayWorkout.name}</Text>
+            <View style={styles.workoutExercises}>
+              {todayWorkout.exercises.map((exercise, index) => (
+                <Text key={index} style={styles.workoutExercise}>• {exercise}</Text>
+              ))}
+            </View>
+            
+            <View style={styles.burnADrinkContainer}>
+              <Text style={styles.burnADrinkText}>
+                Complete {Math.ceil(burnADrinkTime)}x to burn off one drink ({CALORIES_PER_DRINK} cal)
+              </Text>
+            </View>
+          </View>
+        </View>
 
         {/* Drink Logging Section */}
         <View style={styles.drinkSection}>
@@ -1358,30 +1737,34 @@ const styles = StyleSheet.create({
   drinksSummaryCard: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    padding: 16,
-    marginTop: 20,
-    marginBottom: 20,
+    padding: 14,
+    marginTop: 12,
+    marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
   },
   drinksSummaryContent: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   drinksSummaryIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#f0f8ff',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#eff6ff',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
   },
   drinksSummaryEmoji: {
-    fontSize: 24,
+    fontSize: 22,
   },
   drinksSummaryText: {
     flex: 1,
@@ -1389,22 +1772,547 @@ const styles = StyleSheet.create({
   drinksSummaryTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: 2,
+    color: '#1e293b',
+    marginBottom: 4,
   },
   drinksSummaryCount: {
     fontSize: 14,
-    color: '#666',
+    color: '#64748b',
+    fontWeight: '500',
   },
   logDrinksQuickButton: {
-    backgroundColor: '#4169e1',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    backgroundColor: '#3b82f6',
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 6,
   },
   logDrinksQuickButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#ffffff',
+    letterSpacing: 0.5,
+  },
+  // Weight-Loss Feature Styles
+  caloriesSavedCard: {
+    backgroundColor: '#fef7f0',
+    borderRadius: 16,
+    padding: 14,
+    marginTop: -8,
+    marginBottom: 12,
+    shadowColor: '#ea580c',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+  },
+  caloriesAFCard: {
+    backgroundColor: '#ecfdf5',
+    borderWidth: 3,
+    borderColor: '#10b981',
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+  },
+  caloriesCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  caloriesIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#fff7ed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+  },
+  caloriesEmoji: {
+    fontSize: 20,
+  },
+  caloriesTextContainer: {
+    flex: 1,
+  },
+  caloriesCardTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 2,
+  },
+  caloriesCardNumber: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#ea580c',
+  },
+  celebrationCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  celebrationIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#f0fdf4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+  },
+  celebrationEmoji: {
+    fontSize: 20,
+  },
+  celebrationTextContainer: {
+    flex: 1,
+  },
+  celebrationCardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#059669',
+    marginBottom: 2,
+  },
+  celebrationCardSubtitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#065f46',
+  },
+  weightLossFactCard: {
+    backgroundColor: '#faf5ff',
+    borderRadius: 16,
+    padding: 14,
+    marginTop: -6,
+    marginBottom: 12,
+    shadowColor: '#8b5cf6',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#c4b5fd',
+  },
+  weightLossFactIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#faf5ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e9d5ff',
+  },
+  weightLossFactEmoji: {
+    fontSize: 20,
+  },
+  weightLossFactText: {
     fontSize: 14,
     fontWeight: '600',
+    color: '#6b21a8',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  afBenefitCard: {
+    backgroundColor: '#fffbeb',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 14,
+    shadowColor: '#f59e0b',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#fde68a',
+  },
+  afBenefitIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#fef3c7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#fbbf24',
+  },
+  afBenefitEmoji: {
+    fontSize: 22,
+  },
+  afBenefitTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1e293b',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  afBenefitText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#475569',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  tipOfDayCard: {
+    backgroundColor: '#eff6ff',
+    borderRadius: 20,
+    padding: 24,
+    marginTop: 16,
+    marginBottom: 20,
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 8,
+    borderWidth: 2,
+    borderColor: '#bfdbfe',
+  },
+  tipOfDayHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    justifyContent: 'center',
+  },
+  tipOfDayIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  tipOfDayTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1e293b',
+  },
+  tipOfDayText: {
+    fontSize: 15,
+    color: '#475569',
+    lineHeight: 22,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  // Weight Progress Jar Visual Styles
+  weightProgressCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    padding: 24,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  weightProgressTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1e293b',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  weightProgressSubtitle: {
+    fontSize: 14,
+    color: '#64748b',
+    lineHeight: 20,
+    textAlign: 'center',
+    marginBottom: 28,
+    fontWeight: '500',
+  },
+  jarContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  jarLid: {
+    width: 90,
+    height: 24,
+    backgroundColor: '#475569',
+    borderRadius: 45,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: -3,
+    zIndex: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  jarLidText: {
+    fontSize: 12,
+    fontWeight: '800',
     color: '#ffffff',
+    letterSpacing: 0.5,
+  },
+  jarBody: {
+    width: 130,
+    height: 170,
+    backgroundColor: '#f8fafc',
+    borderRadius: 20,
+    borderWidth: 3,
+    borderColor: '#e2e8f0',
+    position: 'relative',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  jarFill: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#3b82f6',
+    borderRadius: 17,
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  jarTextContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 3,
+  },
+  jarProgressText: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#1e293b',
+    textShadowColor: '#ffffff',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  bubble: {
+    position: 'absolute',
+    backgroundColor: '#60a5fa',
+    borderRadius: 50,
+    opacity: 0.6,
+  },
+  bubble1: {
+    width: 8,
+    height: 8,
+    top: 20,
+    left: 20,
+  },
+  bubble2: {
+    width: 6,
+    height: 6,
+    top: 40,
+    right: 25,
+  },
+  bubble3: {
+    width: 10,
+    height: 10,
+    top: 60,
+    left: 30,
+  },
+  bubble4: {
+    width: 7,
+    height: 7,
+    top: 10,
+    right: 15,
+  },
+  poundsLostText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#059669',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  todayProgressText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#3b82f6',
+    textAlign: 'center',
+  },
+  jarCelebrationCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 24,
+    marginVertical: 16,
+    borderWidth: 3,
+    borderColor: '#fbbf24',
+    shadowColor: '#f59e0b',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+    alignItems: 'center',
+  },
+  jarCelebrationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  jarCelebrationEmoji: {
+    fontSize: 24,
+    marginHorizontal: 8,
+  },
+  jarCelebrationTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1e293b',
+    textAlign: 'center',
+  },
+  jarCelebrationContent: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  jarCelebrationMainText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#059669',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  jarCelebrationSubText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#64748b',
+    textAlign: 'center',
+  },
+  jarCelebrationReward: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: '#fbbf24',
+  },
+  jarRewardIcon: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  jarRewardText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#92400e',
+  },
+  jarCelebrationDismiss: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#9ca3af',
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  totalPoundsLostText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#7c3aed',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  // Daily Workout Card Styles
+  workoutCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  workoutHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 14,
+  },
+  workoutHeaderLeft: {
+    flex: 1,
+  },
+  workoutTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 4,
+  },
+  workoutSubtitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6b7280',
+  },
+  workoutCheckbox: {
+    padding: 8,
+    borderRadius: 8,
+  },
+  workoutCheckboxCompleted: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#10b981',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 2,
+    transform: [{ scale: 1 }],
+  },
+  workoutCheckboxUncompleted: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#d1d5db',
+    backgroundColor: '#ffffff',
+    transform: [{ scale: 1 }],
+  },
+  workoutContent: {
+    marginTop: 8,
+  },
+  workoutName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#374151',
+    marginBottom: 10,
+  },
+  workoutExercises: {
+    marginBottom: 14,
+  },
+  workoutExercise: {
+    fontSize: 14,
+    color: '#4b5563',
+    marginBottom: 3,
+    fontWeight: '500',
+    paddingLeft: 4,
+  },
+  burnADrinkContainer: {
+    backgroundColor: '#f3f4f6',
+    borderRadius: 10,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  burnADrinkText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6b7280',
+    textAlign: 'center',
   },
 });

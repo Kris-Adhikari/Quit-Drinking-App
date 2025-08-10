@@ -71,6 +71,31 @@ export default function DrinkLogger() {
 
   const emojiOptions = ['🍺', '🍷', '🥃', '🍸', '🍹', '🥂', '🍾', '🧉', '🍻', '🥤'];
 
+  // Track calories for today (frontend-only, resets daily)
+  const trackTodayCalories = async (caloriesAdded: number) => {
+    try {
+      const today = new Date().toDateString();
+      const currentCaloriesData = await AsyncStorage.getItem('todayCalories');
+      
+      let currentCalories = 0;
+      if (currentCaloriesData) {
+        const { date, calories } = JSON.parse(currentCaloriesData);
+        if (date === today) {
+          currentCalories = calories || 0;
+        }
+      }
+      
+      const newTotal = currentCalories + caloriesAdded;
+      await AsyncStorage.setItem('todayCalories', JSON.stringify({
+        date: today,
+        calories: newTotal
+      }));
+      
+    } catch (error) {
+      console.log('Error tracking calories:', error);
+    }
+  };
+
   // Load saved drinks and check if no drinks was already logged today
   useEffect(() => {
     loadSavedDrinks();
@@ -363,15 +388,20 @@ export default function DrinkLogger() {
 
   const handleQuickDrink = async (drink: QuickDrink) => {
     const quantity = getQuantity(drink.id);
+    const totalCalories = drink.calories * quantity;
     try {
       await addAlcoholLog(
         drink.standardDrink * quantity,
         drink.name,
         drink.price * quantity,
-        drink.calories * quantity,
+        totalCalories,
         drink.abv,
         drink.volume * quantity
       );
+      
+      // Track calories for today
+      await trackTodayCalories(totalCalories);
+      
       resetQuantity(drink.id);
       await showSuccessAlert(`${quantity}x ${drink.name}`, drink.standardDrink * quantity);
     } catch (error) {
@@ -381,15 +411,20 @@ export default function DrinkLogger() {
 
   const handleCustomDrink = async (drink: CustomDrink) => {
     const quantity = getQuantity(drink.id);
+    const totalCalories = drink.calories * quantity;
     try {
       await addAlcoholLog(
         drink.standard_drinks * quantity,
         drink.name,
         drink.price * quantity,
-        drink.calories * quantity,
+        totalCalories,
         drink.alcohol_content,
         drink.volume * quantity
       );
+      
+      // Track calories for today
+      await trackTodayCalories(totalCalories);
+      
       resetQuantity(drink.id);
       await showSuccessAlert(`${quantity}x ${drink.name}`, drink.standardDrink * quantity);
     } catch (error) {
@@ -440,6 +475,9 @@ export default function DrinkLogger() {
         volumeNum,
         drinkForm.notes
       );
+      
+      // Track calories for today
+      await trackTodayCalories(caloriesNum);
       
       setShowAddDrinkModal(false);
       setDrinkForm({

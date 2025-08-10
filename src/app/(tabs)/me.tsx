@@ -202,6 +202,7 @@ export default function Profile() {
           <Text style={styles.streakLabel}>Days Alcohol-Free</Text>
         </View>
 
+
         {/* Badge Shop */}
         <View style={styles.badgeSection}>
           <View style={styles.sectionHeader}>
