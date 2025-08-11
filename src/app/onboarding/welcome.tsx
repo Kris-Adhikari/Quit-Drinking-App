@@ -41,7 +41,13 @@ export default function Welcome() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f0f4ff" />
+      <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
+      
+      <View style={styles.header}>
+        <View style={styles.progressBar}>
+          <View style={[styles.progressFill, { width: `${1 / 22 * 100}%` }]} />
+        </View>
+      </View>
       
       <View style={styles.content}>
         <View style={styles.topSection}>
@@ -54,9 +60,9 @@ export default function Welcome() {
           <Text style={styles.welcomeText}>Welcome to Sober Up</Text>
           
           <Text style={styles.subtitleText}>
-            Let's start by finding out if{'\n'}
-            you have a problem with{'\n'}
-            alcohol
+            Let's discover how alcohol{'\n'}
+            affects your wellness and{'\n'}
+            create your path forward
           </Text>
           
           <View style={styles.ratingContainer}>
@@ -70,6 +76,25 @@ export default function Welcome() {
               />
             ))}
           </View>
+          
+          <View style={styles.socialProofContainer}>
+            <Text style={styles.socialProofText}>
+              "I lost 12 lbs in 6 weeks just by cutting alcohol and following the plan!" 
+              <Text style={styles.socialProofAuthor}> - Taylor M.</Text>
+            </Text>
+            
+            <View style={styles.statsContainer}>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>10,000+</Text>
+                <Text style={styles.statLabel}>People transformed</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>4.8★</Text>
+                <Text style={styles.statLabel}>App rating</Text>
+              </View>
+            </View>
+          </View>
         </View>
 
         <View style={styles.bottomContainer}>
@@ -78,7 +103,7 @@ export default function Welcome() {
             onPress={handleStartQuiz}
             activeOpacity={0.8}
           >
-            <Text style={styles.startButtonText}>Start Quiz</Text>
+            <Text style={styles.startButtonText}>Begin Assessment</Text>
             <Ionicons name="chevron-forward" size={20} color="#ffffff" />
           </TouchableOpacity>
 
@@ -91,9 +116,6 @@ export default function Welcome() {
             <Text style={styles.resetButtonText}>RESET ALL DATA & SIGN OUT</Text>
           </TouchableOpacity>
           
-          <View style={styles.indicator}>
-            <View style={styles.indicatorLine} />
-          </View>
         </View>
       </View>
     </SafeAreaView>
@@ -103,7 +125,7 @@ export default function Welcome() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0f4ff',
+    backgroundColor: '#f8f9fa',
   },
   content: {
     flex: 1,
@@ -149,10 +171,10 @@ const styles = StyleSheet.create({
   startButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4169e1',
+    backgroundColor: '#1e3a8a',
     paddingVertical: 16,
     paddingHorizontal: 30,
-    borderRadius: 30,
+    borderRadius: 12,
     marginBottom: 20,
     minWidth: 200,
     justifyContent: 'center',
@@ -176,16 +198,62 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
   },
-  indicator: {
-    width: 100,
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
+  },
+  progressBar: {
     height: 4,
     backgroundColor: '#e0e0e0',
     borderRadius: 2,
+    marginTop: 100,
   },
-  indicatorLine: {
-    width: '20%',
+  progressFill: {
     height: '100%',
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#1e3a8a',
     borderRadius: 2,
+  },
+  socialProofContainer: {
+    marginTop: 30,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+  },
+  socialProofText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginBottom: 20,
+    lineHeight: 22,
+  },
+  socialProofAuthor: {
+    fontWeight: '600',
+    color: '#1e3a8a',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 20,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1e3a8a',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
+  statDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: '#e0e0e0',
   },
 });

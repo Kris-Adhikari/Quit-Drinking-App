@@ -14,10 +14,10 @@ import { Ionicons } from '@expo/vector-icons';
 const alcoholTypes = [
   'Beer',
   'Wine',
-  'Cocktails',
-  'Spirits/Liquor',
-  'Hard Seltzer',
-  'Other'
+  'Mixed Drinks',
+  'Hard Liquor',
+  'Seltzer (Hard)',
+  'Something Else'
 ];
 
 export default function TypesOfAlcohol() {
@@ -33,7 +33,7 @@ export default function TypesOfAlcohol() {
   };
 
   const handleContinue = () => {
-    router.push('/onboarding/reasons-for-drinking');
+    router.push('/onboarding/previous-attempts');
   };
 
   const handleBack = () => {
@@ -42,27 +42,20 @@ export default function TypesOfAlcohol() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f0f4ff" />
+      <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
       
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.backButton} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={24} color="#1a1a1a" />
+        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Personalization</Text>
-        <View style={styles.progressContainer}>
-          <View style={[styles.progressDot, styles.progressDotActive]} />
-          <View style={[styles.progressDot, styles.progressDotActive]} />
-          <View style={styles.progressDot} />
-          <View style={styles.progressDot} />
-          <View style={styles.progressDot} />
-          <View style={styles.progressDot} />
-          <View style={styles.progressDot} />
+        <View style={styles.progressBar}>
+          <View style={[styles.progressFill, { width: `${16 / 22 * 100}%` }]} />
         </View>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>What types of alcohol do you normally drink?</Text>
-        <Text style={styles.subtitle}>This will help us personalize your plan.{'\n'}(Select all that apply)</Text>
+        <Text style={styles.title}>Which alcoholic beverages do you usually consume?</Text>
+        <Text style={styles.subtitle}>This helps us tailor your experience.{'\n'}(Choose any that apply)</Text>
 
         <View style={styles.optionsContainer}>
           {alcoholTypes.map((type, index) => (
@@ -111,44 +104,27 @@ export default function TypesOfAlcohol() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0f4ff',
+    backgroundColor: '#f8f9fa',
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 20,
-    alignItems: 'center',
+    paddingTop: 60,
+    paddingBottom: 10,
   },
   backButton: {
-    position: 'absolute',
-    left: 20,
-    top: 40,
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: -10,
+    padding: 8,
+    marginLeft: -8,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1a3a7b',
+  progressBar: {
+    height: 4,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 2,
     marginTop: 20,
-    marginBottom: 15,
   },
-  progressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  progressDot: {
-    width: 24,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#d0d0d0',
-  },
-  progressDotActive: {
-    backgroundColor: '#1a3a7b',
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#1e3a8a',
+    borderRadius: 2,
   },
   content: {
     flex: 1,
@@ -188,7 +164,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   optionCardSelected: {
-    borderColor: '#1a3a7b',
+    borderColor: '#1e3a8a',
     backgroundColor: '#f0f4ff',
   },
   optionText: {
@@ -198,18 +174,18 @@ const styles = StyleSheet.create({
     textAlign: 'left',
   },
   optionTextSelected: {
-    color: '#1a3a7b',
+    color: '#1e3a8a',
   },
   bottomContainer: {
     paddingHorizontal: 20,
     paddingBottom: 40,
     paddingTop: 20,
-    backgroundColor: '#f0f4ff',
+    backgroundColor: '#f8f9fa',
   },
   continueButton: {
-    backgroundColor: '#1a3a7b',
+    backgroundColor: '#1e3a8a',
     paddingVertical: 16,
-    borderRadius: 30,
+    borderRadius: 12,
     alignItems: 'center',
   },
   continueButtonDisabled: {

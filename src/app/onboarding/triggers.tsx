@@ -11,15 +11,14 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-const triggerOptions = [
-  { id: 'stress', label: 'Stress', icon: 'alert-circle' },
-  { id: 'social', label: 'Social Pressure', icon: 'people' },
-  { id: 'boredom', label: 'Boredom', icon: 'time' },
-  { id: 'celebration', label: 'Celebrations', icon: 'happy' },
-  { id: 'anxiety', label: 'Anxiety', icon: 'pulse' },
-  { id: 'routine', label: 'Daily Routine', icon: 'refresh' },
-  { id: 'loneliness', label: 'Loneliness', icon: 'person' },
-  { id: 'anger', label: 'Anger', icon: 'flame' },
+const drinkingTriggers = [
+  { id: 'stress', title: 'Tension & Worry', description: 'Job stress, life pressures, anxious feelings', icon: 'alert-circle-outline' },
+  { id: 'social', title: 'Group Activities', description: 'Gatherings, meals out, social occasions', icon: 'people-outline' },
+  { id: 'boredom', title: 'Idle Time', description: 'Having nothing planned, restless feelings', icon: 'time-outline' },
+  { id: 'emotions', title: 'Challenging Feelings', description: 'Upset, irritation, disappointment', icon: 'heart-outline' },
+  { id: 'habit', title: 'Regular Patterns', description: 'End of workday, during meals, TV time', icon: 'refresh-outline' },
+  { id: 'celebration', title: 'Special Occasions', description: 'Milestones, positive news, weekend rituals', icon: 'trophy-outline' },
+  { id: 'other', title: 'Different Reason', description: 'A trigger not mentioned here', icon: 'ellipsis-horizontal-outline' },
 ];
 
 export default function Triggers() {
@@ -37,7 +36,7 @@ export default function Triggers() {
 
   const handleContinue = () => {
     if (selectedTriggers.length > 0) {
-      router.push('/onboarding/goals');
+      router.push('/onboarding/typical-week');
     }
   };
 
@@ -47,70 +46,81 @@ export default function Triggers() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f0f4ff" />
+      <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
       
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.backButton} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={24} color="#1a1a1a" />
+        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Personalization</Text>
-        <View style={styles.progressContainer}>
-          <View style={styles.progressDot} />
-          <View style={styles.progressDot} />
-          <View style={[styles.progressDot, styles.progressDotActive]} />
-          <View style={styles.progressDot} />
+        <View style={styles.progressBar}>
+          <View style={[styles.progressFill, { width: `${12 / 22 * 100}%` }]} />
         </View>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>What triggers your drinking?</Text>
-        <Text style={styles.subtitle}>
-          Select all that apply. This helps us provide better support.
-        </Text>
+      <View style={styles.content}>
+        <View style={styles.topSection}>
+          <Text style={styles.title}>Let's identify your triggers so you can master them</Text>
+          <Text style={styles.empowerment}>
+            Self-awareness is your superpower. Recognizing these patterns puts you ahead of most people.
+          </Text>
+          <Text style={styles.subtitle}>
+            Choose the circumstances that usually result in alcohol consumption
+          </Text>
+        </View>
 
-        <View style={styles.triggersGrid}>
-          {triggerOptions.map((trigger) => (
+        <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+
+        <View style={styles.optionsContainer}>
+          {drinkingTriggers.map((trigger) => (
             <TouchableOpacity
               key={trigger.id}
               style={[
-                styles.triggerCard,
-                selectedTriggers.includes(trigger.id) && styles.triggerCardSelected,
+                styles.option,
+                selectedTriggers.includes(trigger.id) && styles.selectedOption,
               ]}
               onPress={() => handleToggleTrigger(trigger.id)}
               activeOpacity={0.7}
             >
-              <Ionicons
-                name={trigger.icon as any}
-                size={28}
-                color={selectedTriggers.includes(trigger.id) ? '#8B5CF6' : '#666666'}
-              />
-              <Text style={[
-                styles.triggerLabel,
-                selectedTriggers.includes(trigger.id) && styles.triggerLabelSelected,
-              ]}>
-                {trigger.label}
-              </Text>
+              <View style={styles.optionContent}>
+                <Ionicons
+                  name={trigger.icon as any}
+                  size={32}
+                  color={selectedTriggers.includes(trigger.id) ? '#fff' : '#1e3a8a'}
+                />
+                <View style={styles.optionText}>
+                  <Text
+                    style={[
+                      styles.optionTitle,
+                      selectedTriggers.includes(trigger.id) && styles.selectedOptionTitle,
+                    ]}
+                  >
+                    {trigger.title}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.optionDescription,
+                      selectedTriggers.includes(trigger.id) && styles.selectedOptionDescription,
+                    ]}
+                  >
+                    {trigger.description}
+                  </Text>
+                </View>
+              </View>
             </TouchableOpacity>
           ))}
         </View>
+        </ScrollView>
+      </View>
 
+      <View style={styles.footer}>
         <TouchableOpacity
-          style={[
-            styles.continueButton,
-            selectedTriggers.length === 0 && styles.continueButtonDisabled,
-          ]}
+          style={[styles.nextButton, selectedTriggers.length === 0 && styles.disabledButton]}
           onPress={handleContinue}
           disabled={selectedTriggers.length === 0}
-          activeOpacity={0.8}
         >
-          <Text style={[
-            styles.continueButtonText,
-            selectedTriggers.length === 0 && styles.continueButtonTextDisabled,
-          ]}>
-            Continue
-          </Text>
+          <Text style={styles.nextButtonText}>Continue</Text>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -118,110 +128,116 @@ export default function Triggers() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0f4ff',
+    backgroundColor: '#f8f9fa',
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 20,
-    alignItems: 'center',
+    paddingTop: 60,
+    paddingBottom: 10,
   },
   backButton: {
-    position: 'absolute',
-    left: 20,
-    top: 40,
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: -10,
+    padding: 8,
+    marginLeft: -8,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1a3a7b',
+  progressBar: {
+    height: 4,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 2,
     marginTop: 20,
-    marginBottom: 15,
   },
-  progressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  progressDot: {
-    width: 32,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#d0d0d0',
-  },
-  progressDotActive: {
-    backgroundColor: '#1a3a7b',
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#1e3a8a',
+    borderRadius: 2,
   },
   content: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 30,
+    paddingTop: 40,
+  },
+  topSection: {
+    paddingBottom: 20,
+  },
+  scrollContainer: {
+    flex: 1,
+    marginBottom: 20,
   },
   title: {
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: 'bold',
     color: '#1a1a1a',
-    marginBottom: 10,
+    marginBottom: 16,
+  },
+  empowerment: {
+    fontSize: 16,
+    color: '#1e3a8a',
+    textAlign: 'center',
+    marginBottom: 20,
+    fontWeight: '500',
+    backgroundColor: '#f0f4ff',
+    padding: 12,
+    borderRadius: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666666',
-    marginBottom: 30,
+    color: '#666',
+    marginBottom: 40,
     lineHeight: 22,
   },
-  triggersGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 40,
+  optionsContainer: {
+    gap: 16,
   },
-  triggerCard: {
-    width: '48%',
-    aspectRatio: 1,
-    backgroundColor: '#f5f5f5',
+  option: {
+    backgroundColor: '#fff',
     borderRadius: 16,
     padding: 20,
-    marginBottom: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
     borderWidth: 2,
-    borderColor: 'transparent',
+    borderColor: '#e0e0e0',
   },
-  triggerCardSelected: {
-    borderColor: '#8B5CF6',
-    backgroundColor: '#f8f5ff',
+  selectedOption: {
+    backgroundColor: '#1e3a8a',
+    borderColor: '#1e3a8a',
   },
-  triggerLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666666',
-    marginTop: 12,
-    textAlign: 'center',
-  },
-  triggerLabelSelected: {
-    color: '#8B5CF6',
-  },
-  continueButton: {
-    backgroundColor: '#1a1a1a',
-    paddingVertical: 16,
-    borderRadius: 30,
+  optionContent: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 30,
+    gap: 16,
   },
-  continueButtonDisabled: {
-    backgroundColor: '#e0e0e0',
+  optionText: {
+    flex: 1,
   },
-  continueButtonText: {
+  optionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginBottom: 4,
+  },
+  selectedOptionTitle: {
+    color: '#fff',
+  },
+  optionDescription: {
+    fontSize: 14,
+    color: '#666',
+  },
+  selectedOptionDescription: {
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  footer: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  nextButton: {
+    backgroundColor: '#1e3a8a',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  disabledButton: {
+    backgroundColor: '#ccc',
+  },
+  nextButtonText: {
+    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
-  },
-  continueButtonTextDisabled: {
-    color: '#999999',
   },
 });

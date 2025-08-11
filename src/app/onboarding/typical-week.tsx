@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 export default function TypicalWeek() {
   const router = useRouter();
   const [drinksPerWeek, setDrinksPerWeek] = useState(20);
-  const [averageCost, setAverageCost] = useState(30);
+  const [averageCost, setAverageCost] = useState(8);
 
   const monthlySpending = Math.round((drinksPerWeek * averageCost * 52) / 12);
   const yearlySpending = drinksPerWeek * averageCost * 52;
@@ -56,7 +56,7 @@ export default function TypicalWeek() {
   };
 
   const drinksPanResponder = createSliderPanResponder(setDrinksPerWeek, 0, 50, drinksSliderRef);
-  const costPanResponder = createSliderPanResponder(setAverageCost, 10, 200, costSliderRef);
+  const costPanResponder = createSliderPanResponder(setAverageCost, 3, 20, costSliderRef);
 
   const handleContinue = () => {
     router.push('/onboarding/types-of-alcohol');
@@ -68,29 +68,27 @@ export default function TypicalWeek() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f0f4ff" />
+      <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
       
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.backButton} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={24} color="#1a1a1a" />
+        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Personalization</Text>
-        <View style={styles.progressContainer}>
-          <View style={[styles.progressDot, styles.progressDotActive]} />
-          <View style={styles.progressDot} />
-          <View style={styles.progressDot} />
-          <View style={styles.progressDot} />
-          <View style={styles.progressDot} />
-          <View style={styles.progressDot} />
-          <View style={styles.progressDot} />
+        <View style={styles.progressBar}>
+          <View style={[styles.progressFill, { width: `${13 / 22 * 100}%` }]} />
         </View>
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.title}>What does your typical week look like for you?</Text>
+        <Text style={styles.title}>Tell us about your drinking habits</Text>
+        <View style={styles.momentumBox}>
+          <Text style={styles.momentumText}>
+            You're building something powerful - a clear path to your success.
+          </Text>
+        </View>
 
         <View style={styles.spendingSection}>
-          <Text style={styles.spendingSectionTitle}>Your Total Spending on Alcohol</Text>
+          <Text style={styles.spendingSectionTitle}>Your Alcohol Budget Impact</Text>
           <View style={styles.spendingRow}>
             <View style={styles.spendingColumn}>
               <Text style={styles.spendingLabel}>Monthly</Text>
@@ -106,7 +104,7 @@ export default function TypicalWeek() {
         <View style={styles.sliderSection}>
           <View style={styles.sliderContainer}>
             <View style={styles.sliderHeader}>
-              <Text style={styles.sliderLabel}>Drinks{'\n'}(Per Week)</Text>
+              <Text style={styles.sliderLabel}>Weekly{'\n'}Consumption</Text>
               <Text style={styles.sliderValue}>{drinksPerWeek}</Text>
             </View>
             <View 
@@ -122,7 +120,7 @@ export default function TypicalWeek() {
 
           <View style={styles.sliderContainer}>
             <View style={styles.sliderHeader}>
-              <Text style={styles.sliderLabel}>Average Cost{'\n'}(Per Week)</Text>
+              <Text style={styles.sliderLabel}>Typical Expense{'\n'}(Per Drink)</Text>
               <Text style={styles.sliderValue}>${averageCost}</Text>
             </View>
             <View 
@@ -131,23 +129,23 @@ export default function TypicalWeek() {
               {...costPanResponder.panHandlers}
             >
               <View style={styles.sliderBackground} />
-              <View style={[styles.sliderProgress, { width: `${((averageCost - 10) / 190) * 100}%` }]} />
-              <View style={[styles.sliderThumb, { left: `${((averageCost - 10) / 190) * 100}%` }]} />
+              <View style={[styles.sliderProgress, { width: `${((averageCost - 3) / 17) * 100}%` }]} />
+              <View style={[styles.sliderThumb, { left: `${((averageCost - 3) / 17) * 100}%` }]} />
             </View>
           </View>
         </View>
+      </View>
 
-        <View style={styles.bottomContainer}>
-          <TouchableOpacity
-            style={styles.continueButton}
-            onPress={handleContinue}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.continueButtonText}>
-              Next
-            </Text>
-          </TouchableOpacity>
-        </View>
+      <View style={styles.bottomContainer}>
+        <TouchableOpacity
+          style={styles.continueButton}
+          onPress={handleContinue}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.continueButtonText}>
+            Next
+          </Text>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -156,62 +154,59 @@ export default function TypicalWeek() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0f4ff',
+    backgroundColor: '#f8f9fa',
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 20,
-    alignItems: 'center',
+    paddingTop: 60,
+    paddingBottom: 10,
   },
   backButton: {
-    position: 'absolute',
-    left: 20,
-    top: 40,
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: -10,
+    padding: 8,
+    marginLeft: -8,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1a3a7b',
+  progressBar: {
+    height: 4,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 2,
     marginTop: 20,
-    marginBottom: 15,
   },
-  progressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  progressDot: {
-    width: 24,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#d0d0d0',
-  },
-  progressDotActive: {
-    backgroundColor: '#1a3a7b',
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#1e3a8a',
+    borderRadius: 2,
   },
   content: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 30,
+    paddingTop: 15,
+    paddingBottom: 10,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
     color: '#1a1a1a',
-    marginBottom: 40,
-    lineHeight: 36,
+    marginBottom: 10,
+    lineHeight: 30,
+  },
+  momentumBox: {
+    backgroundColor: '#fef3c7',
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 15,
+    alignItems: 'center',
+  },
+  momentumText: {
+    fontSize: 14,
+    color: '#92400e',
+    textAlign: 'center',
+    fontWeight: '600',
   },
   spendingSection: {
     backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 30,
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -222,10 +217,10 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   spendingSectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: '#1a1a1a',
-    marginBottom: 20,
+    marginBottom: 15,
     textAlign: 'center',
   },
   spendingRow: {
@@ -246,10 +241,10 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
   },
   sliderSection: {
-    marginBottom: 40,
+    marginBottom: 20,
   },
   sliderContainer: {
-    marginBottom: 30,
+    marginBottom: 20,
   },
   sliderHeader: {
     flexDirection: 'row',
@@ -285,7 +280,7 @@ const styles = StyleSheet.create({
   },
   sliderProgress: {
     height: 6,
-    backgroundColor: '#1a3a7b',
+    backgroundColor: '#1e3a8a',
     borderRadius: 3,
     position: 'absolute',
     top: 17,
@@ -297,7 +292,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#1a3a7b',
+    backgroundColor: '#1e3a8a',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -308,13 +303,13 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   bottomContainer: {
-    marginTop: 'auto',
+    padding: 20,
     paddingBottom: 40,
   },
   continueButton: {
-    backgroundColor: '#1a3a7b',
+    backgroundColor: '#1e3a8a',
     paddingVertical: 16,
-    borderRadius: 30,
+    borderRadius: 12,
     alignItems: 'center',
   },
   continueButtonText: {

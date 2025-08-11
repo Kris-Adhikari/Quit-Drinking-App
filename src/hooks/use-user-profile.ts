@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/use-auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -26,9 +26,18 @@ export const useUserProfile = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAnonymous, setIsAnonymous] = useState(true);
+  const lastLoadTimeRef = useRef<number>(0);
+  const MIN_RELOAD_INTERVAL = 2000; // Minimum 2 seconds between reloads
 
   // Load profile - AsyncStorage only for anonymous, Supabase for authenticated
   const loadProfile = useCallback(async (forceRefresh = false) => {
+    // Throttle reloads to prevent excessive database requests
+    const now = Date.now();
+    if (!forceRefresh && now - lastLoadTimeRef.current < MIN_RELOAD_INTERVAL) {
+      return; // Skip if called too frequently
+    }
+    lastLoadTimeRef.current = now;
+    
     try {
       
       // Check if user is anonymous (not signed in)
@@ -189,10 +198,13 @@ export const useUserProfile = () => {
       setProfile(updatedProfile);
       await AsyncStorage.setItem(`profile_${user.id}`, JSON.stringify(updatedProfile));
 
-      // Then save to Supabase
+      // Then save to Supabase - upsert with conflict resolution on user_id
       const { data, error } = await supabase
         .from('user_profiles')
-        .upsert(updatedProfile)
+        .upsert(updatedProfile, { 
+          onConflict: 'user_id',
+          ignoreDuplicates: false 
+        })
         .select()
         .single();
 

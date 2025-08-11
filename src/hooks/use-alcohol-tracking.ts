@@ -393,17 +393,22 @@ export const useAlcoholTracking = () => {
     setStreakData(newStreakData);
   };
 
-  // Load streak data when profile changes
+  // Load streak data only when profile ID changes (initial load)
   useEffect(() => {
-    loadStreakData();
-  }, [profile?.id, profile?.current_streak, profile?.longest_streak]); // Only depend on specific profile values
+    if (profile?.id) {
+      loadStreakData();
+    }
+  }, [profile?.id]); // Only depend on profile ID, not values that change frequently
   
-  // Load other data when user changes
+  // Load initial data when user changes
   useEffect(() => {
     if (user?.id) {
-      loadTodayLogs();
-      calculateStreak();
-      calculateStats();
+      // Load all data in parallel
+      Promise.all([
+        loadTodayLogs(),
+        calculateStreak(),
+        calculateStats()
+      ]);
     }
   }, [user?.id]); // Only depend on user ID to avoid function dependency loops
 

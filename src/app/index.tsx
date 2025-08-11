@@ -42,9 +42,9 @@ export default function Index() {
     );
   }
 
-  // Not signed in - go to auth
+  // Not signed in - go to splash
   if (!isSignedIn) {
-    return <Redirect href="/auth/sign-in" />;
+    return <Redirect href="/splash" />;
   }
 
   // Signed in and onboarding completed - go to main app
@@ -52,7 +52,7 @@ export default function Index() {
     return <Redirect href="/(tabs)/daily" />;
   }
 
-  // Signed in but needs onboarding
+  // Signed in but needs onboarding (skip splash/value props)
   return <Redirect href="/onboarding/welcome" />;
 }
 

@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import { useOAuth, useSignIn, useSignUp, useClerk } from '@clerk/clerk-expo';
 import { useRouter } from 'expo-router';
@@ -247,7 +248,14 @@ export function ClerkAuthForm() {
             onPress={() => handleOAuth('google')}
             disabled={isLoading}
           >
-            <Text style={styles.socialButtonText}>Continue with Google</Text>
+            <View style={styles.socialButtonContent}>
+              <Image 
+                source={require('../../../assets/images/Google__G__logo.svg.png')} 
+                style={styles.googleIcon}
+                resizeMode="contain"
+              />
+              <Text style={styles.socialButtonText}>Continue with Google</Text>
+            </View>
           </TouchableOpacity>
 
           {Platform.OS === 'ios' && (
@@ -256,9 +264,16 @@ export function ClerkAuthForm() {
               onPress={() => handleOAuth('apple')}
               disabled={isLoading}
             >
-              <Text style={[styles.socialButtonText, styles.appleButtonText]}>
-                Continue with Apple
-              </Text>
+              <View style={styles.socialButtonContent}>
+                <Image 
+                  source={require('../../../assets/images/apple.png')} 
+                  style={styles.appleIcon}
+                  resizeMode="contain"
+                />
+                <Text style={[styles.socialButtonText, styles.appleButtonText]}>
+                  Continue with Apple
+                </Text>
+              </View>
             </TouchableOpacity>
           )}
         </View>
@@ -374,5 +389,20 @@ const styles = StyleSheet.create({
     color: '#999',
     fontSize: 14,
     textDecorationLine: 'underline',
+  },
+  socialButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  googleIcon: {
+    width: 20,
+    height: 20,
+    marginRight: 8,
+  },
+  appleIcon: {
+    width: 20,
+    height: 20,
+    marginRight: 8,
   },
 });

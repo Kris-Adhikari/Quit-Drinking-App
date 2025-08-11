@@ -210,16 +210,13 @@ export default function Daily() {
   useFocusEffect(
     useCallback(() => {
       const loadData = async () => {
+        // Load task states first
         await loadTaskStates();
-        await loadCoins();
-        await reloadProfile();
-        await refreshData();
         
-        // Force another profile reload after a brief delay to catch any updates from other screens
-        setTimeout(async () => {
-          await reloadProfile();
-          await refreshData(); // Also refresh drink data
-        }, 500);
+        // Then load other data if we have the required functions
+        if (typeof loadCoins === 'function') await loadCoins();
+        if (typeof reloadProfile === 'function') await reloadProfile();
+        if (typeof refreshData === 'function') await refreshData();
         
         // Check today's drink status and count
         try {
@@ -290,7 +287,7 @@ export default function Daily() {
         }
       };
       loadData();
-    }, [loadTaskStates, loadCoins, refreshData, reloadProfile])
+    }, []) // Empty dependency array - only run on mount/focus
   );
 
   // Generate tasks for different days
@@ -399,13 +396,8 @@ export default function Daily() {
           // Use saveProfile directly to make atomic update
           const atomicResult = await saveProfile(atomicUpdate);
           
-          // Reload profile to show updated coins and streak immediately
-          await reloadProfile();
-          
-          // Wait a bit and reload again to ensure we get the updated data
-          setTimeout(async () => {
-            await reloadProfile();
-          }, 1000);
+          // No need to reload immediately as saveProfile updates local state
+          // The profile will refresh on next screen focus if needed
           
           // Show celebration popup with the correct new streak
           setNewStreakCount(newStreakValue);
@@ -428,12 +420,10 @@ export default function Daily() {
         }
       }
     }
-  }, [taskStates, dayCompleted, updateStreak, addCoins, reloadProfile, profile?.current_streak]);
+  }, [taskStates, dayCompleted, saveProfile, profile, todayDrinkStatus, todayTotal, totalCaloriesSaved, checkJarCompletion]);
 
-  // Check day completion when task states change
-  useEffect(() => {
-    checkDayCompletion(0);
-  }, [taskStates, checkDayCompletion]);
+  // Check day completion when task states change - removed to prevent loops
+  // The checkDayCompletion is called when individual tasks are completed instead
 
   const handleDayPress = (index: number) => {
     const dayOffset = index - todayIndex; // Calculate offset from today

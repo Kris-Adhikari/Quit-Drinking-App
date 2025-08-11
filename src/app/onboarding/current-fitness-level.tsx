@@ -2,35 +2,56 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
+  StyleSheet,
   SafeAreaView,
   ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-const drinkingOptions = [
-  { id: 'daily', title: 'Every Day', description: 'I consume alcohol daily' },
-  { id: 'weekly', title: 'Multiple Weekly', description: 'A few times each week' },
-  { id: 'occasional', title: 'Sometimes', description: 'Weekly or less often' },
-  { id: 'social', title: 'Events Only', description: 'Just during social gatherings' },
-  { id: 'rarely', title: 'Rarely', description: 'Very occasionally' },
+const fitnessLevels = [
+  {
+    id: 'sedentary',
+    title: 'Mostly Inactive',
+    description: 'Minimal physical activity',
+    icon: 'bed-outline',
+  },
+  {
+    id: 'lightly_active',
+    title: 'Somewhat Active',
+    description: 'Move around 1-2 times weekly',
+    icon: 'walk-outline',
+  },
+  {
+    id: 'moderately_active',
+    title: 'Regularly Active',
+    description: 'Workout 3-5 times weekly',
+    icon: 'bicycle-outline',
+  },
+  {
+    id: 'very_active',
+    title: 'Highly Active',
+    description: 'Daily movement and exercise',
+    icon: 'barbell-outline',
+  },
 ];
 
-export default function DrinkingHabits() {
+export default function CurrentFitnessLevel() {
   const router = useRouter();
-  const [selectedHabit, setSelectedHabit] = useState<string | null>(null);
+  const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
 
-  const handleContinue = () => {
-    if (selectedHabit) {
-      router.push('/onboarding/interference-frequency');
+  const handleNext = () => {
+    if (selectedLevel) {
+      router.push('/onboarding/weight-goal');
     }
   };
 
   const handleBack = () => {
     router.back();
   };
+
+  const progress = 6 / 22; // 6th screen out of 22 total
 
   return (
     <SafeAreaView style={styles.container}>
@@ -39,44 +60,49 @@ export default function DrinkingHabits() {
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: `${19 / 22 * 100}%` }]} />
+          <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
         </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>What's your drinking frequency?</Text>
+        <Text style={styles.title}>How would you describe your activity level?</Text>
         <Text style={styles.subtitle}>
-          This helps us learn about your current patterns
+          Understanding your lifestyle helps us create better recommendations
         </Text>
 
         <View style={styles.optionsContainer}>
-          {drinkingOptions.map((option) => (
+          {fitnessLevels.map((level) => (
             <TouchableOpacity
-              key={option.id}
+              key={level.id}
               style={[
                 styles.option,
-                selectedHabit === option.id && styles.selectedOption,
+                selectedLevel === level.id && styles.selectedOption,
               ]}
-              onPress={() => setSelectedHabit(option.id)}
+              onPress={() => setSelectedLevel(level.id)}
               activeOpacity={0.7}
             >
               <View style={styles.optionContent}>
+                <Ionicons
+                  name={level.icon as any}
+                  size={32}
+                  color={selectedLevel === level.id ? '#fff' : '#1e3a8a'}
+                />
                 <View style={styles.optionText}>
                   <Text
                     style={[
                       styles.optionTitle,
-                      selectedHabit === option.id && styles.selectedOptionTitle,
+                      selectedLevel === level.id && styles.selectedOptionTitle,
                     ]}
                   >
-                    {option.title}
+                    {level.title}
                   </Text>
                   <Text
                     style={[
                       styles.optionDescription,
-                      selectedHabit === option.id && styles.selectedOptionDescription,
+                      selectedLevel === level.id && styles.selectedOptionDescription,
                     ]}
                   >
-                    {option.description}
+                    {level.description}
                   </Text>
                 </View>
               </View>
@@ -87,9 +113,9 @@ export default function DrinkingHabits() {
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.nextButton, !selectedHabit && styles.disabledButton]}
-          onPress={handleContinue}
-          disabled={!selectedHabit}
+          style={[styles.nextButton, !selectedLevel && styles.disabledButton]}
+          onPress={handleNext}
+          disabled={!selectedLevel}
         >
           <Text style={styles.nextButtonText}>Continue</Text>
         </TouchableOpacity>
@@ -126,19 +152,19 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 40,
   },
   title: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#1a1a1a',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: 16,
     color: '#666',
-    marginBottom: 16,
-    lineHeight: 20,
+    marginBottom: 40,
+    lineHeight: 22,
   },
   optionsContainer: {
     gap: 16,

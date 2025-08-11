@@ -32,27 +32,21 @@ export default function Gender() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f0f4ff" />
+      <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
       
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.backButton} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={24} color="#1a1a1a" />
+        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Profile</Text>
-        <View style={styles.progressContainer}>
-          <View style={[styles.progressDot, styles.progressDotActive]} />
-          <View style={[styles.progressDot, styles.progressDotActive]} />
-          <View style={[styles.progressDot, styles.progressDotActive]} />
-          <View style={styles.progressDot} />
-          <View style={styles.progressDot} />
-          <View style={styles.progressDot} />
+        <View style={styles.progressBar}>
+          <View style={[styles.progressFill, { width: `${4 / 22 * 100}%` }]} />
         </View>
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.title}>Which sex best describes you?</Text>
+        <Text style={styles.title}>What is your biological sex?</Text>
         <Text style={styles.subtitle}>
-          Sex and hormones impact how our body responds to alcohol.
+          Biology influences how your body processes alcohol differently.
         </Text>
 
         <View style={styles.optionsContainer}>
@@ -102,56 +96,38 @@ export default function Gender() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0f4ff',
+    backgroundColor: '#f8f9fa',
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 20,
-    alignItems: 'center',
+    paddingTop: 60,
+    paddingBottom: 10,
   },
   backButton: {
-    position: 'absolute',
-    left: 20,
-    top: 40,
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: -10,
+    padding: 8,
+    marginLeft: -8,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1a3a7b',
+  progressBar: {
+    height: 4,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 2,
     marginTop: 20,
-    marginBottom: 15,
   },
-  progressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  progressDot: {
-    width: 26,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#d0d0d0',
-  },
-  progressDotActive: {
-    backgroundColor: '#1a3a7b',
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#1e3a8a',
+    borderRadius: 2,
   },
   content: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 30,
+    paddingTop: 40,
   },
   title: {
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: 'bold',
     color: '#1a1a1a',
-    marginBottom: 16,
-    lineHeight: 36,
+    marginBottom: 12,
   },
   subtitle: {
     fontSize: 16,
@@ -172,8 +148,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   optionCardSelected: {
-    borderColor: '#8B5CF6',
-    backgroundColor: '#f8f5ff',
+    borderColor: '#1e3a8a',
+    backgroundColor: '#f0f4ff',
   },
   optionLabel: {
     fontSize: 18,
@@ -181,7 +157,7 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
   },
   optionLabelSelected: {
-    color: '#8B5CF6',
+    color: '#1e3a8a',
     fontWeight: '600',
   },
   bottomContainer: {
@@ -189,9 +165,9 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   continueButton: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#1e3a8a',
     paddingVertical: 16,
-    borderRadius: 30,
+    borderRadius: 12,
     alignItems: 'center',
   },
   continueButtonDisabled: {

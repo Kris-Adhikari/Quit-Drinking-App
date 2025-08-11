@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Dimensions,
   Image,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,7 +29,8 @@ export default function SignIn() {
   const { session } = useAuth();
   const { profile } = useUserProfile();
   const [loading, setLoading] = useState(false);
-  const { startOAuthFlow } = useOAuth({ strategy: 'oauth_google' });
+  const { startOAuthFlow: startGoogleFlow } = useOAuth({ strategy: 'oauth_google' });
+  const { startOAuthFlow: startAppleFlow } = useOAuth({ strategy: 'oauth_apple' });
 
   // Redirect to home if already signed in (let root index.tsx handle routing)
   useEffect(() => {
@@ -37,12 +39,13 @@ export default function SignIn() {
     }
   }, [session]);
 
-  const handleOAuthSignIn = async () => {
+  const handleOAuthSignIn = async (provider: 'google' | 'apple') => {
     try {
       setLoading(true);
-      console.log('Starting Google OAuth with Clerk...');
+      console.log(`Starting ${provider} OAuth with Clerk...`);
       
-      const { createdSessionId, signIn, signUp, setActive } = await startOAuthFlow();
+      const startFlow = provider === 'google' ? startGoogleFlow : startAppleFlow;
+      const { createdSessionId, signIn, signUp, setActive } = await startFlow();
       console.log('OAuth flow completed:', { createdSessionId, signIn: !!signIn, signUp: !!signUp });
       
       if (createdSessionId && setActive) {
@@ -75,8 +78,8 @@ export default function SignIn() {
   };
 
   const handleSkip = () => {
-    // Navigate to onboarding without authentication
-    router.replace('/onboarding/welcome');
+    // Navigate to value props without authentication
+    router.replace('/onboarding/value-prop-1');
   };
 
   const clearAllData = async () => {
@@ -126,14 +129,31 @@ export default function SignIn() {
           {/* Google Sign In Button */}
           <TouchableOpacity
             style={styles.googleButton}
-            onPress={handleOAuthSignIn}
+            onPress={() => handleOAuthSignIn('google')}
             disabled={loading}
             activeOpacity={0.8}
           >
-            <View style={styles.googleIconContainer}>
-              <Ionicons name="logo-google" size={20} color="#fff" />
-            </View>
+            <Image 
+              source={require('../../../assets/images/Google__G__logo.svg.png')} 
+              style={styles.googleIcon}
+              resizeMode="contain"
+            />
             <Text style={styles.googleButtonText}>Sign up with Google</Text>
+          </TouchableOpacity>
+
+          {/* Apple Sign In Button */}
+          <TouchableOpacity
+            style={styles.appleButton}
+            onPress={() => handleOAuthSignIn('apple')}
+            disabled={loading}
+            activeOpacity={0.8}
+          >
+            <Image 
+              source={require('../../../assets/images/apple.png')} 
+              style={styles.appleIcon}
+              resizeMode="contain"
+            />
+            <Text style={styles.appleButtonText}>Sign up with Apple</Text>
           </TouchableOpacity>
 
           {/* Skip Button */}
@@ -143,7 +163,7 @@ export default function SignIn() {
             disabled={loading}
             activeOpacity={0.7}
           >
-            <Text style={styles.skipButtonText}>Skip</Text>
+            <Text style={styles.skipButtonText}>Continue without signing up</Text>
           </TouchableOpacity>
 
           {/* Terms Text */}
@@ -230,13 +250,9 @@ const styles = StyleSheet.create({
     maxWidth: 320,
     marginBottom: 16,
   },
-  googleIconContainer: {
+  googleIcon: {
     width: 24,
     height: 24,
-    borderRadius: 12,
-    backgroundColor: '#4285F4',
-    alignItems: 'center',
-    justifyContent: 'center',
     marginRight: 12,
   },
   googleButtonText: {
@@ -247,16 +263,47 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginRight: 36, // Balance the icon space
   },
-  skipButton: {
+  appleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#000000',
     paddingVertical: 14,
-    paddingHorizontal: 32,
-    marginBottom: 32,
+    paddingHorizontal: 24,
+    borderRadius: 100,
+    width: width - 48,
+    maxWidth: 320,
+    marginBottom: 16,
+  },
+  appleIcon: {
+    width: 24,
+    height: 24,
+    marginRight: 12,
+  },
+  appleButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+    flex: 1,
+    textAlign: 'center',
+    marginRight: 36, // Balance the icon space
+  },
+  skipButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#4169e1',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 100,
+    width: width - 48,
+    maxWidth: 320,
+    marginBottom: 16,
   },
   skipButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#666',
-    textDecorationLine: 'underline',
+    color: '#ffffff',
+    flex: 1,
+    textAlign: 'center',
   },
   termsText: {
     fontSize: 13,
