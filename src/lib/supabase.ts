@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Database } from '@/types/supabase';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -7,18 +6,6 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 // Mock Supabase client for development
 const createMockSupabaseClient = () => {
-  const mockAuth = {
-    getSession: async () => ({ data: { session: null }, error: null }),
-    getUser: async () => ({ data: { user: null }, error: null }),
-    signUp: async () => ({ data: null, error: { message: 'Supabase is disabled in development mode' } }),
-    signInWithPassword: async () => ({ data: null, error: { message: 'Supabase is disabled in development mode' } }),
-    signOut: async () => ({ error: null }),
-    onAuthStateChange: (callback: any) => {
-      // Return mock unsubscribe function
-      return { data: { subscription: { unsubscribe: () => {} } } };
-    },
-  };
-
   const mockFrom = (table: string) => {
     const chainableMethods = {
       select: () => chainableMethods,
@@ -48,18 +35,16 @@ const createMockSupabaseClient = () => {
   };
 
   return {
-    auth: mockAuth,
     from: mockFrom,
   };
 };
 
-// Create real Supabase client if credentials are provided, otherwise use mock
+// Create Supabase client - using anon key with application-level security
 export const supabase = supabaseUrl && supabaseAnonKey
   ? createClient<Database>(supabaseUrl, supabaseAnonKey, {
       auth: {
-        storage: AsyncStorage,
-        autoRefreshToken: true,
-        persistSession: true,
+        persistSession: false,
+        autoRefreshToken: false,
         detectSessionInUrl: false,
       },
     })

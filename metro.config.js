@@ -5,6 +5,8 @@ const config = getDefaultConfig(__dirname);
 config.resolver = {
   ...config.resolver,
   sourceExts: [...config.resolver.sourceExts, 'cjs'],
+  resolverMainFields: ['react-native', 'browser', 'main'],
+  platforms: ['ios', 'android', 'native', 'web'],
 };
 
 module.exports = config;

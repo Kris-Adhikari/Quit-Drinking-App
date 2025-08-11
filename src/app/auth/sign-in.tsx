@@ -15,9 +15,8 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/use-auth';
 import { useUserProfile } from '@/hooks/use-user-profile';
-import { supabase } from '@/lib/supabase';
+import { useOAuth } from '@clerk/clerk-expo';
 import * as WebBrowser from 'expo-web-browser';
-import { makeRedirectUri } from 'expo-auth-session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -26,9 +25,10 @@ const { width } = Dimensions.get('window');
 
 export default function SignIn() {
   const router = useRouter();
-  const { signInWithOAuth, session } = useAuth();
+  const { session } = useAuth();
   const { profile } = useUserProfile();
   const [loading, setLoading] = useState(false);
+  const { startOAuthFlow } = useOAuth({ strategy: 'oauth_google' });
 
   // Redirect to home if already signed in (let root index.tsx handle routing)
   useEffect(() => {
@@ -37,72 +37,38 @@ export default function SignIn() {
     }
   }, [session]);
 
-  const handleOAuthSignIn = async (provider: 'google') => {
+  const handleOAuthSignIn = async () => {
     try {
       setLoading(true);
+      console.log('Starting Google OAuth with Clerk...');
       
-      // Get the redirect URI first
-      // Use stoppr:// scheme to match Supabase config
-      const redirectUri = makeRedirectUri({
-        scheme: 'stoppr',
-      });
-      console.log('Redirect URI:', redirectUri);
+      const { createdSessionId, signIn, signUp, setActive } = await startOAuthFlow();
+      console.log('OAuth flow completed:', { createdSessionId, signIn: !!signIn, signUp: !!signUp });
       
-      // Pass redirect URI to the auth hook
-      const { data, error } = await signInWithOAuth(provider, redirectUri);
-      
-      if (error) {
-        Alert.alert('Sign In Failed', error.message);
-        return;
-      }
-
-      if (data?.url) {
-        console.log('OAuth URL:', data.url);
-        
-        const result = await WebBrowser.openAuthSessionAsync(
-          data.url,
-          redirectUri
-        );
-
-        console.log('OAuth result:', result);
-        
-        if (result.type === 'success') {
-          // Parse the URL to get the auth tokens
-          const url = result.url;
-          console.log('Success URL:', url);
-          
-          // Extract access_token and refresh_token from URL
-          const urlParams = new URLSearchParams(url.split('#')[1] || url.split('?')[1]);
-          const accessToken = urlParams.get('access_token');
-          const refreshToken = urlParams.get('refresh_token');
-          
-          if (accessToken) {
-            // Set the session manually
-            const { error: sessionError } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken || '',
-            });
-            
-            if (sessionError) {
-              console.error('Session error:', sessionError);
-              Alert.alert('Authentication Error', 'Failed to establish session');
-            } else {
-              console.log('Session established successfully');
-            }
-          } else {
-            Alert.alert('Authentication Error', 'No access token received');
-          }
-        } else if (result.type === 'cancel') {
-          console.log('OAuth cancelled by user');
-        } else if (result.type === 'dismiss') {
-          console.log('OAuth dismissed by user');
-        }
+      if (createdSessionId && setActive) {
+        console.log('Setting active session:', createdSessionId);
+        await setActive({ session: createdSessionId });
+        console.log('Session set successfully, redirecting...');
+        router.replace('/');
       } else {
-        Alert.alert('Authentication Error', 'No OAuth URL received');
+        console.log('No session created or setActive not available');
+        Alert.alert('Authentication Error', 'Failed to create session');
       }
-    } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred');
+    } catch (error: any) {
       console.error('OAuth sign in error:', error);
+      
+      let errorMessage = 'An unexpected error occurred';
+      if (error.message?.includes('browser')) {
+        errorMessage = 'Please install a browser to continue with OAuth';
+      } else if (error.message?.includes('redirect')) {
+        errorMessage = 'OAuth redirect issue. Please check your Clerk dashboard settings.';
+      } else if (error.errors?.[0]?.message) {
+        errorMessage = error.errors[0].message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      Alert.alert('Sign In Failed', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -160,7 +126,7 @@ export default function SignIn() {
           {/* Google Sign In Button */}
           <TouchableOpacity
             style={styles.googleButton}
-            onPress={() => handleOAuthSignIn('google')}
+            onPress={handleOAuthSignIn}
             disabled={loading}
             activeOpacity={0.8}
           >

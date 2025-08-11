@@ -8,17 +8,35 @@ import {
   StatusBar,
   Dimensions,
   Image,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '@/hooks/use-auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 
 export default function Welcome() {
   const router = useRouter();
+  const { signOut } = useAuth();
 
   const handleStartQuiz = () => {
     router.push('/onboarding/personalization-intro');
+  };
+
+  const handleReset = async () => {
+    try {
+      await signOut();
+      await AsyncStorage.clear();
+      Alert.alert(
+        'Reset Complete', 
+        'All data cleared and signed out. Redirecting to sign-in.',
+        [{ text: 'OK', onPress: () => router.replace('/auth/sign-in') }]
+      );
+    } catch (error) {
+      Alert.alert('Error', 'Failed to reset. Try again.');
+    }
   };
 
   return (
@@ -64,6 +82,14 @@ export default function Welcome() {
             <Ionicons name="chevron-forward" size={20} color="#ffffff" />
           </TouchableOpacity>
 
+          {/* Temporary Reset Button */}
+          <TouchableOpacity
+            style={styles.resetButton}
+            onPress={handleReset}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.resetButtonText}>RESET ALL DATA & SIGN OUT</Text>
+          </TouchableOpacity>
           
           <View style={styles.indicator}>
             <View style={styles.indicatorLine} />
@@ -136,6 +162,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#ffffff',
     marginRight: 8,
+  },
+  resetButton: {
+    marginTop: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    backgroundColor: '#ff4444',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  resetButtonText: {
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: '600',
   },
   indicator: {
     width: 100,

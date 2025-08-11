@@ -228,7 +228,7 @@ export const useUserProfile = () => {
 
   useEffect(() => {
     loadProfile();
-  }, [loadProfile]);
+  }, [user?.id]); // Only depend on user.id, not the entire loadProfile function
 
   // Update streak data
   const updateStreak = useCallback(async (newStreak: number) => {

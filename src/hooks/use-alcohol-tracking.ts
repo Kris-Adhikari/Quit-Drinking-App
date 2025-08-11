@@ -396,7 +396,7 @@ export const useAlcoholTracking = () => {
   // Load streak data when profile changes
   useEffect(() => {
     loadStreakData();
-  }, [loadStreakData]);
+  }, [profile?.id, profile?.current_streak, profile?.longest_streak]); // Only depend on specific profile values
   
   // Load other data when user changes
   useEffect(() => {
@@ -405,7 +405,7 @@ export const useAlcoholTracking = () => {
       calculateStreak();
       calculateStats();
     }
-  }, [user?.id]);
+  }, [user?.id]); // Only depend on user ID to avoid function dependency loops
 
   // Calculate today's total drinks
   const todayTotal = todayLogs.reduce((sum: number, log: AlcoholLog) => sum + log.amount, 0);
