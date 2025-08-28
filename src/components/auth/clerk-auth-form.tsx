@@ -182,7 +182,7 @@ export function ClerkAuthForm() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Welcome to Stoppr</Text>
+          <Text style={styles.title}>Welcome to SoberUp</Text>
           <Text style={styles.subtitle}>
             {isSignUp ? 'Create your account' : 'Sign in to continue'}
           </Text>

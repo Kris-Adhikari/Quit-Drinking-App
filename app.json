@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "Stoppr",
-    "slug": "stoppr",
+    "name": "SoberUp",
+    "slug": "soberup",
     "version": "1.0.0",
-    "scheme": "stoppr",
+    "scheme": "soberup",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
